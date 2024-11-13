@@ -18,7 +18,10 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkClosedLoopController;
 import com.scra.mepi.rapid_react.Constants;
 import com.scra.mepi.rapid_react.ShooterLookupTable;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -75,7 +78,9 @@ public class ShooterSubsytem extends SubsystemBase {
 
         if (RobotBase.isSimulation()) {
             DCMotor gearbox = DCMotor.getNeo550(2);
-            FlywheelSim shooterFlywheelSim = new FlywheelSim(gearbox, 1, 0.01);
+            LinearSystem<N1, N1, N1> plant =
+                LinearSystemId.createFlywheelSystem(gearbox, 0.01, 1.0);
+            FlywheelSim shooterFlywheelSim = new FlywheelSim(plant, gearbox);
             m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim,
                 new RevMotorControllerSimWrapper(m_shooterMotor),
                 RevEncoderSimWrapper.create(m_shooterMotor));

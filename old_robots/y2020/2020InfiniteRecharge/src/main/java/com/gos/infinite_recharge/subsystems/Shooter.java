@@ -11,6 +11,9 @@ import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.system.LinearSystem;
+import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.snobotv2.module_wrappers.rev.RevEncoderSimWrapper;
@@ -91,7 +94,10 @@ public class Shooter extends SubsystemBase {
 
         if (RobotBase.isSimulation()) {
             DCMotor gearbox = DCMotor.getVex775Pro(2);
-            FlywheelSim flywheelSim = new FlywheelSim(gearbox, 1.66, .008);
+            LinearSystem<N1, N1, N1> plant =
+                LinearSystemId.createFlywheelSystem(gearbox, .008, 1.66);
+            FlywheelSim flywheelSim = new FlywheelSim(plant, gearbox);
+
             m_simulator = new FlywheelSimWrapper(flywheelSim,
                     new RevMotorControllerSimWrapper(m_master),
                     RevEncoderSimWrapper.create(m_master));
@@ -119,8 +125,10 @@ public class Shooter extends SubsystemBase {
         m_customNetworkTable.getEntry("Current RPM").setDouble(rpm);
         m_customNetworkTable.getEntry("Goal RPM").setDouble(m_goalRPM);
 
-        masterConfig.closedLoop.p(m_dashboardKp.getValue());
-        masterConfig.closedLoop.velocityFF(m_dashboardKff.getValue());
+        SparkMaxConfig config = new SparkMaxConfig();
+        config.closedLoop.p(m_dashboardKp.getValue());
+        config.closedLoop.velocityFF(m_dashboardKff.getValue());
+        m_master.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
         // System.out.println("kp: " + m_dashboardKp.getValue() + ", " + m_dashboardKff.getValue() + " goal: " + m_goalRPM + "== " + rpm);
 
         m_isAtShooterSpeedEntry.setBoolean(isAtFullSpeed());

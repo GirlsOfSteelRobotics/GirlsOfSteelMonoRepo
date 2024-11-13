@@ -15,7 +15,10 @@ import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkClosedLoopController;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -107,13 +110,17 @@ public class ShooterSubsystem extends SubsystemBase {
 
         if (RobotBase.isSimulation()) {
             DCMotor shooterGearbox = DCMotor.getNeo550(2);
-            FlywheelSim shooterFlywheelSim = new FlywheelSim(shooterGearbox, 1, 0.01);
+            LinearSystem<N1, N1, N1> shooterPlant =
+                LinearSystemId.createFlywheelSystem(shooterGearbox, 0.01, 1.0);
+            FlywheelSim shooterFlywheelSim = new FlywheelSim(shooterPlant, shooterGearbox);
             m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim,
                 new RevMotorControllerSimWrapper(m_leader),
                 RevEncoderSimWrapper.create(m_leader));
 
             DCMotor backspinGearbox = DCMotor.getNeo550(2);
-            FlywheelSim backspinFlywheelSim = new FlywheelSim(backspinGearbox, 1, 0.01);
+            LinearSystem<N1, N1, N1> backspinPlant =
+                LinearSystemId.createFlywheelSystem(shooterGearbox, 0.01, 1.0);
+            FlywheelSim backspinFlywheelSim = new FlywheelSim(backspinPlant, backspinGearbox);
             m_backspinSimulator = new FlywheelSimWrapper(backspinFlywheelSim,
                 new RevMotorControllerSimWrapper(m_roller),
                 RevEncoderSimWrapper.create(m_roller));

@@ -11,7 +11,7 @@ import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkClosedLoopController;
-import com.revrobotics.SparkClosedLoopController.ArbFFUnits;
+import com.revrobotics.spark.SparkClosedLoopController.ArbFFUnits;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
@@ -64,14 +64,14 @@ public class ChassisSubsystem extends SubsystemBase {
         SparkMax leftDriveB = new SparkMax(Constants.CAN_CHASSIS_LEFT_B, MotorType.kBrushless);
 
         SparkMaxConfig leftDriveAConfig = new SparkMaxConfig();
-        leftDriveB.restoreFactoryDefaults();
-        leftDriveB.follow(m_leftDriveA);
+        SparkMaxConfig leftDriveBConfig = new SparkMaxConfig();
+        leftDriveBConfig.follow(m_leftDriveA);
 
         m_rightDriveA = new SparkMax(Constants.CAN_CHASSIS_RIGHT_A, MotorType.kBrushless);
         SparkMax rightDriveB = new SparkMax(Constants.CAN_CHASSIS_RIGHT_B, MotorType.kBrushless);
         SparkMaxConfig rightDriveAConfig = new SparkMaxConfig();
-        rightDriveB.restoreFactoryDefaults();
-        rightDriveB.follow(m_rightDriveA);
+        SparkMaxConfig rightDriveBConfig = new SparkMaxConfig();
+        rightDriveBConfig.follow(m_rightDriveA);
         m_rightDriveA.setInverted(true);
 
         m_leftEncoder = m_leftDriveA.getEncoder();
@@ -105,9 +105,9 @@ public class ChassisSubsystem extends SubsystemBase {
         }
 
         m_leftDriveA.configure(leftDriveAConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-        leftDriveB.burnFlash();
+        leftDriveB.configure(leftDriveBConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         m_rightDriveA.configure(rightDriveAConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-        rightDriveB.burnFlash();
+        rightDriveB.configure(rightDriveBConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     }
 
     private PidProperty setupVelocityPidConstants(SparkClosedLoopController pidController) {

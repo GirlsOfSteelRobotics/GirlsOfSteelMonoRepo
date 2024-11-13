@@ -7,5 +7,6 @@ gos_java_library(
     deps = [
         "//libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties",
         "@bzlmodrio-allwpilib//libraries/java/wpimath",
+        "@bzlmodrio-allwpilib//libraries/java/wpiunits",
     ],
 )

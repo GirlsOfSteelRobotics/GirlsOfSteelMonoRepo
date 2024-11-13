@@ -190,8 +190,10 @@ public class HangerSubsystem extends SubsystemBase {
     }
 
     public void setIdleMode(IdleMode mode) {
-        m_leftHangerMotor.setIdleMode(mode);
-        m_rightHangerMotor.setIdleMode(mode);
+        SparkMaxConfig config = new SparkMaxConfig();
+        config.idleMode(mode);
+        m_leftHangerMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_rightHangerMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 
     /////////////////////////////////////

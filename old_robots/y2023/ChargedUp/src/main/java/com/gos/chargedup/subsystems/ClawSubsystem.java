@@ -52,7 +52,11 @@ public class ClawSubsystem extends SubsystemBase {
         m_clawMotor.configure(clawMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         m_clawMotorErrorAlerts = new SparkMaxAlerts(m_clawMotor, "claw motor");
 
-        currentLimit = new HeavyIntegerProperty(m_clawMotor:Config.smartCurrentLimit, CLAW_CURRENT_LIMIT);
+        m_currentLimit = new HeavyIntegerProperty((x) -> {
+            SparkMaxConfig config = new SparkMaxConfig();
+            config.smartCurrentLimit(x);
+            m_clawMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        }, CLAW_CURRENT_LIMIT);
 
         m_networkTableEntries = new LoggingUtil("Claw Subsystem");
         m_networkTableEntries.addDouble("Current Amps", m_clawMotor::getOutputCurrent);

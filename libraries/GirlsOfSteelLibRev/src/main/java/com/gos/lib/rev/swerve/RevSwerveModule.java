@@ -8,6 +8,8 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.revrobotics.AbsoluteEncoder;
 import com.revrobotics.spark.SparkBase;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
+import com.revrobotics.spark.config.SparkBaseConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
@@ -292,12 +294,14 @@ public class RevSwerveModule {
     }
 
     public void setCoastMode() {
-        drivingMotorConfig.idleMode(IdleMode.kCoast);
-        turningMotorConfig.idleMode(IdleMode.kCoast);
+        SparkBaseConfig config = new SparkMaxConfig().idleMode(IdleMode.kCoast);
+        m_drivingSparkMax.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_turningSparkMax.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 
     public void setBrakeMode() {
-        drivingMotorConfig.idleMode(IdleMode.kBrake);
-        turningMotorConfig.idleMode(IdleMode.kBrake);
+        SparkBaseConfig config = new SparkMaxConfig().idleMode(IdleMode.kBrake);
+        m_drivingSparkMax.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_turningSparkMax.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 }

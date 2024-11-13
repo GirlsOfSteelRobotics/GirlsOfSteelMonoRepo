@@ -12,6 +12,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
@@ -148,7 +149,7 @@ public class Chassis extends SubsystemBase {
         double allowedErr = 0;
         double kMaxOutput = 1;
         double kMinOutput = -1;
-        int smartMotionSlot = 0;
+        ClosedLoopSlot smartMotionSlot = ClosedLoopSlot.kSlot0;
 
         m_leftProperties = new RevPidPropertyBuilder("Chassis", lockConstants, m_leftPidController, 0)
             .addP(kp)

@@ -1,32 +1,35 @@
 package com.gos.crescendo2024.subsystems.sysid;
 
 import com.gos.crescendo2024.subsystems.ShooterSubsystem;
-import edu.wpi.first.units.measure.Units;
+import edu.wpi.first.units.measure.MutAngle;
+import edu.wpi.first.units.measure.MutAngularVelocity;
+import edu.wpi.first.units.measure.MutVoltage;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 
-import static edu.wpi.first.units.measure.MutableMeasure.mutable;
 import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.Second;
+import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.units.Units.Volts;
 
 public class ShooterSysId {
     private final SysIdRoutine m_routine;
     private final ShooterSubsystem m_shooter;
 
-    private final MutableVoltage m_appliedVoltage = mutable(Volts.of(0));
-    private final MutableAngle m_rotations = mutable(Rotations.of(0));
-    private final MutableAngularVelocity m_velocity = mutable(RotationsPerSecond.of(0));
+    private final MutVoltage m_appliedVoltage = Volts.mutable(0);
+    private final MutAngle m_rotations = Rotations.mutable(0);
+    private final MutAngularVelocity m_velocity = RotationsPerSecond.mutable(0);
 
     public ShooterSysId(ShooterSubsystem shooter) {
         m_shooter = shooter;
         m_routine = new SysIdRoutine(
             new SysIdRoutine.Config(
-                Units.Volts.of(1.0).per(Units.Seconds.of(1.0)),
-                Units.Volts.of(7.0),
-                Units.Seconds.of(10.0)),
+                Volts.of(1).per(Second),
+                Volts.of(7),
+                Seconds.of(10)),
             new SysIdRoutine.Mechanism(this::setVoltage, this::logMotors, shooter)
         );
     }

@@ -7,6 +7,7 @@ package com.gos.codelabs.pid;
 
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N2;
 import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.system.plant.DCMotor;
@@ -101,15 +102,20 @@ public final class Constants {
 
         public static ElevatorSim createSim() {
 
+            LinearSystem<N2, N1, N2> plant = LinearSystemId.createElevatorSystem(
+                ElevatorSimConstants.ELEVATOR_GEARBOX,
+                ElevatorSimConstants.CARRIAGE_MASS,
+                ElevatorSimConstants.DRUM_RADIUS,
+                ElevatorSimConstants.ELEVATOR_GEARING
+            );
             return new ElevatorSim(
-                    ElevatorSimConstants.ELEVATOR_GEARBOX,
-                    ElevatorSimConstants.ELEVATOR_GEARING,
-                    ElevatorSimConstants.CARRIAGE_MASS,
-                    ElevatorSimConstants.DRUM_RADIUS,
-                    ElevatorSimConstants.MIN_ELEVATOR_HEIGHT,
-                    ElevatorSimConstants.MAX_ELEVATOR_HEIGHT, true,
-                    0,
-                    SIMULATE_SENSOR_NOISE ?  VecBuilder.fill(0.01) : null); // NOPMD
+                plant,
+                ElevatorSimConstants.ELEVATOR_GEARBOX,
+                ElevatorSimConstants.MIN_ELEVATOR_HEIGHT,
+                ElevatorSimConstants.MAX_ELEVATOR_HEIGHT,
+                true,
+                0,
+                SIMULATE_SENSOR_NOISE ?  VecBuilder.fill(0.01).getData() : new double[]{}); // NOPMD
         }
 
         private ElevatorSimConstants() {
@@ -123,8 +129,10 @@ public final class Constants {
         public static final double INERTIA = 0.03;
 
         public static FlywheelSim createSim() {
-            return new FlywheelSim(FlywheelSimConstants.GEARBOX, FlywheelSimConstants.GEARING, FlywheelSimConstants.INERTIA,
-                    SIMULATE_SENSOR_NOISE ? VecBuilder.fill(0.5) : null); // NOPMD
+            LinearSystem<N1, N1, N1> plant =
+                LinearSystemId.createFlywheelSystem(FlywheelSimConstants.GEARBOX, FlywheelSimConstants.INERTIA, FlywheelSimConstants.GEARING);
+            return new FlywheelSim(plant, FlywheelSimConstants.GEARBOX,
+                    SIMULATE_SENSOR_NOISE ? VecBuilder.fill(0.5).getData() : new double[]{}); // NOPMD
         }
 
         private FlywheelSimConstants() {

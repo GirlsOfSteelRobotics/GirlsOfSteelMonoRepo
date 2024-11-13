@@ -2,6 +2,7 @@ package com.gos.lib.rev.checklists;
 
 
 import com.revrobotics.RelativeEncoder;
+import com.revrobotics.spark.SparkBase;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
@@ -11,7 +12,7 @@ public class SparkMaxMotorsMoveChecklist extends Command {
 
     private final RelativeEncoder m_encoder;
 
-    private final CANSparkMax m_motor;
+    private final SparkBase m_motor;
 
     private final Timer m_timer;
 
@@ -23,7 +24,7 @@ public class SparkMaxMotorsMoveChecklist extends Command {
 
     private final Alert m_alert;
 
-    public SparkMaxMotorsMoveChecklist(Subsystem subsystem, CANSparkMax motor, String label, double expectedDist) {
+    public SparkMaxMotorsMoveChecklist(Subsystem subsystem, SparkBase motor, String label, double expectedDist) {
         addRequirements(subsystem);
         m_encoder = motor.getEncoder();
         m_motor = motor;

@@ -34,6 +34,7 @@ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -53,6 +54,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
+import static edu.wpi.first.units.Units.DegreesPerSecond;
+import static edu.wpi.first.units.Units.Volts;
 
 
 @SuppressWarnings("PMD.GodClass")
@@ -298,7 +301,9 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
     public void turnToAngle(double angleGoal) {
         SmartDashboard.putNumber("goal angle chassis pid", angleGoal);
         double steerVoltage = m_turnAnglePID.calculate(m_odometry.getPoseMeters().getRotation().getDegrees(), angleGoal);
-        steerVoltage += m_turnAnglePIDFFProperty.calculate(m_turnAnglePID.getSetpoint().velocity);
+        AngularVelocity currentVelocity = DegreesPerSecond.of(m_gyro.getRate());
+        AngularVelocity goalVelocity = DegreesPerSecond.of(m_turnAnglePID.getSetpoint().velocity);
+        steerVoltage += m_turnAnglePIDFFProperty.calculate(currentVelocity, goalVelocity).in(Volts);
 
         m_gyroAngleGoalVelocityEntry.setNumber(m_turnAnglePID.getSetpoint().velocity);
 
@@ -402,18 +407,22 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
     }
 
     public void drivetrainToBrakeMode() {
-        leaderLeftConfig.idleMode(IdleMode.kBrake);
-        followerLeftConfig.idleMode(IdleMode.kBrake);
-        leaderRightConfig.idleMode(IdleMode.kBrake);
-        followerRightConfig.idleMode(IdleMode.kBrake);
+        SparkMaxConfig config = new SparkMaxConfig();
+        config.idleMode(IdleMode.kBrake);
+        m_leaderLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_followerLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_leaderRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_followerRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
 
     }
 
     public void drivetrainToCoastMode() {
-        leaderLeftConfig.idleMode(IdleMode.kCoast);
-        followerLeftConfig.idleMode(IdleMode.kCoast);
-        leaderRightConfig.idleMode(IdleMode.kCoast);
-        followerRightConfig.idleMode(IdleMode.kCoast);
+        SparkMaxConfig config = new SparkMaxConfig();
+        config.idleMode(IdleMode.kCoast);
+        m_leaderLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_followerLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_leaderRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+        m_followerRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
 
     }
 

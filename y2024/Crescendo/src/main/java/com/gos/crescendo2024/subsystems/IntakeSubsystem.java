@@ -77,7 +77,9 @@ public class IntakeSubsystem extends SubsystemBase {
     }
 
     private void setIdleMode(IdleMode idleMode) {
-        intakeMotorConfig.idleMode(idleMode);
+        SparkMaxConfig config = new SparkMaxConfig();
+        config.idleMode(idleMode);
+        m_intakeMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
     }
 
     /////////////////////////////////////

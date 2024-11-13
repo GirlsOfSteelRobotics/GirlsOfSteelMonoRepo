@@ -29,6 +29,7 @@ gos_java_robot(
         "@bzlmodrio-allwpilib//libraries/java/wpilibNewCommands",
         "@bzlmodrio-allwpilib//libraries/java/wpilibj",
         "@bzlmodrio-allwpilib//libraries/java/wpimath",
+        "@bzlmodrio-allwpilib//libraries/java/wpiunits",
         "@bzlmodrio-allwpilib//libraries/java/wpiutil",
         "@bzlmodrio-pathplannerlib//libraries/java/pathplannerlib-java",
         "@bzlmodrio-phoenix6//libraries/java/wpiapi-java",

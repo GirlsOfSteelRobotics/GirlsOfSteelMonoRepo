@@ -32,6 +32,8 @@ import org.littletonrobotics.frc2023.FieldConstants;
 import java.util.ArrayList;
 import java.util.List;
 
+import static edu.wpi.first.units.Units.Degrees;
+
 public abstract class BaseChassis extends SubsystemBase implements ChassisSubsystemInterface {
     protected static final double PITCH_LOWER_LIMIT = -3.0;
     protected static final double PITCH_UPPER_LIMIT = 3.0;
@@ -159,12 +161,12 @@ public abstract class BaseChassis extends SubsystemBase implements ChassisSubsys
     @Override
     public double getPitch() {
         // INTENTIONALLY ROLL, WE ARE NOT BEING PSYCHOPATHS I PROMISE
-        return m_gyro.getRoll().getValue();
+        return m_gyro.getRoll().getValue().in(Degrees);
     }
 
     @Override
     public double getYaw() {
-        return m_gyro.getYaw().getValue();
+        return m_gyro.getYaw().getValue().in(Degrees);
     }
 
     @Override

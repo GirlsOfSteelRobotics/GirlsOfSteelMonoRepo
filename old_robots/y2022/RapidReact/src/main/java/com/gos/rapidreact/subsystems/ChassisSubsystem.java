@@ -43,6 +43,7 @@ import org.snobotv2.module_wrappers.rev.RevEncoderSimWrapper;
 import org.snobotv2.module_wrappers.rev.RevMotorControllerSimWrapper;
 import org.snobotv2.sim_wrappers.DifferentialDrivetrainSimWrapper;
 
+import static edu.wpi.first.units.Units.Degree;
 
 
 @SuppressWarnings("PMD.TooManyFields")
@@ -180,8 +181,10 @@ public class ChassisSubsystem extends SubsystemBase {
         m_field = new Field2d();
 
         m_openLoopRampRateProperty = new HeavyDoubleProperty((double val) -> {
-            m_leaderLeft.setOpenLoopRampRate(val);
-            m_leaderRight.setOpenLoopRampRate(val);
+            SparkMaxConfig config = new SparkMaxConfig();
+            config.openLoopRampRate(val);
+            m_leaderLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+            m_leaderRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
         }, DRIVER_OL_RAMP_RATE);
 
 
@@ -308,7 +311,7 @@ public class ChassisSubsystem extends SubsystemBase {
     }
 
     public double getYawAngle() {
-        return m_gyro.getYaw().getValue();
+        return m_gyro.getYaw().getValue().in(Degree);
     }
 
     public double getOdometryAngle() {
