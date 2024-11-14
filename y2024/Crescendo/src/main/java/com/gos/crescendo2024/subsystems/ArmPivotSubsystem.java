@@ -12,6 +12,7 @@ import com.gos.lib.rev.alerts.SparkMaxAlerts;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.revrobotics.AbsoluteEncoder;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
@@ -130,7 +131,7 @@ public class ArmPivotSubsystem extends SubsystemBase {
         pivotMotorConfig.closedLoop.positionWrappingEnabled(true);
         pivotMotorConfig.closedLoop.positionWrappingMinInput(0);
         pivotMotorConfig.closedLoop.positionWrappingMaxInput(360);
-        m_sparkPidProperties = new RevPidPropertyBuilder("Arm Pivot", Constants.DEFAULT_CONSTANT_PROPERTIES, m_sparkPidController, 0)
+        m_sparkPidProperties = new RevPidPropertyBuilder("Arm Pivot", Constants.DEFAULT_CONSTANT_PROPERTIES, m_pivotMotor, pivotMotorConfig, ClosedLoopSlot.kSlot0)
             .addP(0.18)
             .addI(0)
             .addD(0)

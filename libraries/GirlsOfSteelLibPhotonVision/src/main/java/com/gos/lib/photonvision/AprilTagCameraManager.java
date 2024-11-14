@@ -10,6 +10,7 @@ import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.RobotBase;
 import org.photonvision.EstimatedRobotPose;
 import org.photonvision.simulation.VisionSystemSim;
+import org.photonvision.targeting.PhotonPipelineResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +59,10 @@ public class AprilTagCameraManager {
     public int numAprilTagsSeen() {
         int seen = 0;
         for (AprilTagCamera camera : m_aprilTagCameras) {
-            seen += camera.getLatestResult().targets.size();
+            Optional<PhotonPipelineResult> maybeResult = camera.getLatestResult();
+            if (maybeResult.isPresent()) {
+                seen += maybeResult.get().targets.size();
+            }
         }
         return seen;
     }

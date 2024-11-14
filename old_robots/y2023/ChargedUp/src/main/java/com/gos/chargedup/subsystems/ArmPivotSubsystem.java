@@ -23,6 +23,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
@@ -162,7 +163,7 @@ public class ArmPivotSubsystem extends SubsystemBase {
 
         m_lowerLimitSwitch = new DigitalInput(Constants.INTAKE_LOWER_LIMIT_SWITCH);
         m_upperLimitSwitch = new DigitalInput(Constants.INTAKE_UPPER_LIMIT_SWITCH);
-        m_sparkPidProperties = setupSparkPidValues(m_sparkPidController);
+        m_sparkPidProperties = setupSparkPidValues(m_pivotMotor, pivotMotorConfig);
 
         m_wpiPidController = new ProfiledPIDController(0, 0, 0, new TrapezoidProfile.Constraints(0, 0));
         m_wpiPidProperties = new WpiProfiledPidPropertyBuilder("Pivot Arm Motion Profile", false, m_wpiPidController)
@@ -251,19 +252,19 @@ public class ArmPivotSubsystem extends SubsystemBase {
         return m_absoluteEncoder.getVelocity();
     }
 
-    private PidProperty setupSparkPidValues(SparkClosedLoopController pidController) {
+    private PidProperty setupSparkPidValues(SparkMax motor, SparkMaxConfig config) {
         ///
         // Full retract:
         // kp=0.000400
         // kf=0.005000
         // kd=0.005000
         if (Constants.IS_ROBOT_BLOSSOM) {
-            return new RevPidPropertyBuilder("Pivot Arm", Constants.DEFAULT_LOCK_PROPERTIES, pidController, 0)
+            return new RevPidPropertyBuilder("Pivot Arm", Constants.DEFAULT_LOCK_PROPERTIES, motor, config, ClosedLoopSlot.kSlot0)
                 .addP(0.03)
                 .addD(0)
                 .build();
         } else {
-            return new RevPidPropertyBuilder("Pivot Arm", Constants.DEFAULT_LOCK_PROPERTIES, pidController, 0)
+            return new RevPidPropertyBuilder("Pivot Arm", Constants.DEFAULT_LOCK_PROPERTIES, motor, config, ClosedLoopSlot.kSlot0)
                 .addP(0.0045) // 0.0058
                 .addD(0.045)
                 .build();

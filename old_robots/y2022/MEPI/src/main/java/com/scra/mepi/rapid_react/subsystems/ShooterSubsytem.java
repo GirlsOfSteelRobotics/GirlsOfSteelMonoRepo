@@ -8,6 +8,7 @@ import com.gos.lib.properties.GosDoubleProperty;
 import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
@@ -66,7 +67,7 @@ public class ShooterSubsytem extends SubsystemBase {
         m_shooterLookupTable = new ShooterLookupTable();
         m_encoder = m_shooterMotor.getEncoder();
         m_pidController = m_shooterMotor.getClosedLoopController();
-        m_pidProperties = new RevPidPropertyBuilder("Shooter", false, m_pidController, 0)
+        m_pidProperties = new RevPidPropertyBuilder("Shooter", false, m_shooterMotor, shooterMotorConfig, ClosedLoopSlot.kSlot0)
             .addP(0)
             .addI(0)
             .addD(0)

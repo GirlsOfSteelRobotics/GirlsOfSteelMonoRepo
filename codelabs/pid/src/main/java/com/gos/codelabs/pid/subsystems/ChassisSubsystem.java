@@ -9,6 +9,7 @@ import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.spark.SparkClosedLoopController.ArbFFUnits;
@@ -30,9 +31,9 @@ import org.snobotv2.sim_wrappers.DifferentialDrivetrainSimWrapper;
 @SuppressWarnings("PMD.TooManyFields")
 public class ChassisSubsystem extends SubsystemBase {
 
-    private static final int PID_SLOT_VELOCITY = 0;
-    private static final int PID_SLOT_SMART_MOTION = 1;
-    private static final int PID_SLOT_POSITION = 2;
+    private static final ClosedLoopSlot PID_SLOT_VELOCITY = ClosedLoopSlot.kSlot0;
+    private static final ClosedLoopSlot PID_SLOT_SMART_MOTION = ClosedLoopSlot.kSlot1;
+    private static final ClosedLoopSlot PID_SLOT_POSITION = ClosedLoopSlot.kSlot2;
 
     public static final double DEFAULT_ALLOWABLE_POSITION_ERROR = Units.inchesToMeters(.5);
 
@@ -78,12 +79,12 @@ public class ChassisSubsystem extends SubsystemBase {
         m_rightEncoder = m_rightDriveA.getEncoder();
         m_leftPid = m_leftDriveA.getClosedLoopController();
         m_rightPid = m_rightDriveA.getClosedLoopController();
-        m_leftVelocityPidProperty = setupVelocityPidConstants(m_leftPid);
-        m_rightVelocityPidProperty = setupVelocityPidConstants(m_rightPid);
-        m_leftSmartMotionPidProperty = setupSmartMotionPidConstants(m_leftPid);
-        m_rightSmartMotionPidProperty = setupSmartMotionPidConstants(m_rightPid);
-        m_leftPositionPidProperty = setupPositionPidConstants(m_leftPid);
-        m_rightPositionPidProperty = setupPositionPidConstants(m_rightPid);
+        m_leftVelocityPidProperty = setupVelocityPidConstants(m_leftDriveA, leftDriveAConfig);
+        m_rightVelocityPidProperty = setupVelocityPidConstants(m_rightDriveA, rightDriveAConfig);
+        m_leftSmartMotionPidProperty = setupSmartMotionPidConstants(m_leftDriveA, leftDriveAConfig);
+        m_rightSmartMotionPidProperty = setupSmartMotionPidConstants(m_rightDriveA, rightDriveAConfig);
+        m_leftPositionPidProperty = setupPositionPidConstants(m_leftDriveA, leftDriveAConfig);
+        m_rightPositionPidProperty = setupPositionPidConstants(m_rightDriveA, rightDriveAConfig);
 
         m_gyro = new ADXRS450_Gyro();
 
@@ -110,22 +111,22 @@ public class ChassisSubsystem extends SubsystemBase {
         rightDriveB.configure(rightDriveBConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     }
 
-    private PidProperty setupVelocityPidConstants(SparkClosedLoopController pidController) {
-        return new RevPidPropertyBuilder("Chassis.vel", false, pidController, PID_SLOT_VELOCITY)
+    private PidProperty setupVelocityPidConstants(SparkMax motor, SparkMaxConfig config) {
+        return new RevPidPropertyBuilder("Chassis.vel", false, motor, config, PID_SLOT_VELOCITY)
                 .addP(0)
                 .addFF(0)
                 .build();
     }
 
-    private PidProperty setupPositionPidConstants(SparkClosedLoopController pidController) {
-        return new RevPidPropertyBuilder("Chassis.pos", false, pidController, PID_SLOT_POSITION)
+    private PidProperty setupPositionPidConstants(SparkMax motor, SparkMaxConfig config) {
+        return new RevPidPropertyBuilder("Chassis.pos", false, motor, config, PID_SLOT_POSITION)
                 .addP(0)
                 .addD(0)
                 .build();
     }
 
-    private PidProperty setupSmartMotionPidConstants(SparkClosedLoopController pidController) {
-        return new RevPidPropertyBuilder("Chassis.sm", false, pidController, PID_SLOT_SMART_MOTION)
+    private PidProperty setupSmartMotionPidConstants(SparkMax motor, SparkMaxConfig config) {
+        return new RevPidPropertyBuilder("Chassis.sm", false, motor, config, PID_SLOT_SMART_MOTION)
                 .addP(0)
                 .addFF(0)
                 .addMaxAcceleration(0)
@@ -208,8 +209,8 @@ public class ChassisSubsystem extends SubsystemBase {
     }
 
     public void driveDistancePositionControl(double leftDistance, double rightDistance) {
-        m_leftPid.setReference(leftDistance, ControlType.kPosition, PID_SLOT_POSITION);
-        m_rightPid.setReference(rightDistance, ControlType.kPosition, PID_SLOT_POSITION);
+        m_leftPid.setReference(leftDistance, ControlType.kPosition, PID_SLOT_POSITION.value);
+        m_rightPid.setReference(rightDistance, ControlType.kPosition, PID_SLOT_POSITION.value);
         m_differentialDrive.feed();
 
         SmartDashboard.putNumber("Left Position Goal", leftDistance);
@@ -217,8 +218,8 @@ public class ChassisSubsystem extends SubsystemBase {
     }
 
     public void driveDistanceSmartMotionControl(double leftDistance, double rightDistance) {
-        m_leftPid.setReference(leftDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION);
-        m_rightPid.setReference(rightDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION);
+        m_leftPid.setReference(leftDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION.value);
+        m_rightPid.setReference(rightDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION.value);
         m_differentialDrive.feed();
 
         SmartDashboard.putNumber("Left SM Goal", leftDistance);
@@ -241,8 +242,8 @@ public class ChassisSubsystem extends SubsystemBase {
 
         ArbFFUnits arbUnit = ArbFFUnits.kVoltage;
 
-        m_leftPid.setReference(leftVelocity, ControlType.kVelocity, PID_SLOT_VELOCITY, arbLeft, arbUnit);
-        m_rightPid.setReference(rightVelocity, ControlType.kVelocity, PID_SLOT_VELOCITY, arbRight, arbUnit);
+        m_leftPid.setReference(leftVelocity, ControlType.kVelocity, PID_SLOT_VELOCITY.value, arbLeft, arbUnit);
+        m_rightPid.setReference(rightVelocity, ControlType.kVelocity, PID_SLOT_VELOCITY.value, arbRight, arbUnit);
         m_differentialDrive.feed();
 
         SmartDashboard.putNumber("Left Velocity Goal", leftVelocity);

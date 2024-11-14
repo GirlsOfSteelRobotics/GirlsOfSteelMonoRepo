@@ -6,6 +6,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.gos.rapidreact.Constants;
 import com.revrobotics.AbsoluteEncoder;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
@@ -127,8 +128,8 @@ public class CollectorSubsystem extends SubsystemBase {
         m_lowerLimitSwitch = new DigitalInput(Constants.INTAKE_LOWER_LIMIT_SWITCH);
         m_upperLimitSwitch = new DigitalInput(Constants.INTAKE_UPPER_LIMIT_SWITCH);
 
-        m_pivotPIDLeft = setupPidValues(m_pidControllerLeft);
-        m_pivotPIDRight = setupPidValues(m_pidControllerRight);
+        m_pivotPIDLeft = setupPidValues(m_pivotLeft, pivotLeftConfig);
+        m_pivotPIDRight = setupPidValues(m_pivotRight, pivotRightConfig);
 
         resetPivotEncoder();
 
@@ -160,8 +161,8 @@ public class CollectorSubsystem extends SubsystemBase {
         }
     }
 
-    private PidProperty setupPidValues(SparkClosedLoopController pidController) {
-        return new RevPidPropertyBuilder("Collector", false, pidController, 0)
+    private PidProperty setupPidValues(SparkMax motor, SparkMaxConfig config) {
+        return new RevPidPropertyBuilder("Collector", false, motor, config, ClosedLoopSlot.kSlot0)
             .addP(0) //0.20201
             .addI(0)
             .addD(0)

@@ -5,11 +5,15 @@ import com.gos.lib.properties.GosDoubleProperty;
 import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkClosedLoopController.ArbFFUnits;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.RobotBase;
@@ -49,18 +53,21 @@ public class ElevatorSubsystem extends SubsystemBase {
 
     public ElevatorSubsystem() {
         m_liftMotor = new SparkMax(Constants.CAN_LIFT_MOTOR, MotorType.kBrushless);
+        SparkMaxConfig liftConfig = new SparkMaxConfig();
         m_liftEncoder = m_liftMotor.getEncoder();
         m_pidController = m_liftMotor.getClosedLoopController();
 
         m_lowerLimitSwitch = new DigitalInput(Constants.DIO_LIFT_LOWER_LIMIT);
         m_upperLimitSwitch = new DigitalInput(Constants.DIO_LIFT_UPPER_LIMIT);
 
-        m_pidProperty = new RevPidPropertyBuilder("Elevator", false, m_pidController, 0)
+        m_pidProperty = new RevPidPropertyBuilder("Elevator", false, m_liftMotor, liftConfig, ClosedLoopSlot.kSlot0)
                 .addP(0)
                 .addFF(0)
                 .addMaxAcceleration(0.1)
                 .addMaxVelocity(0.1)
                 .build();
+
+        m_liftMotor.configure(liftConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         if (RobotBase.isSimulation()) {
             m_elevatorSim = new ElevatorSimWrapper(Constants.ElevatorSimConstants.createSim(),

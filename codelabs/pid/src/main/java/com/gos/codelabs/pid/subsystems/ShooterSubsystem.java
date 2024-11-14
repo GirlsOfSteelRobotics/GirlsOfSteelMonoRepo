@@ -11,10 +11,14 @@ import com.gos.codelabs.pid.Constants;
 import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import org.snobotv2.module_wrappers.rev.RevEncoderSimWrapper;
@@ -33,13 +37,16 @@ public class ShooterSubsystem extends SubsystemBase {
 
     public ShooterSubsystem() {
         m_wheelMotor = new SparkMax(Constants.CAN_SPINNING_MOTOR, MotorType.kBrushless);
+        SparkMaxConfig wheelConfig = new SparkMaxConfig();
         m_encoder = m_wheelMotor.getEncoder();
         m_pidController = m_wheelMotor.getClosedLoopController();
 
-        m_pidProperty = new RevPidPropertyBuilder("Shooter", false, m_pidController, 0)
+        m_pidProperty = new RevPidPropertyBuilder("Shooter", false, m_wheelMotor, wheelConfig, ClosedLoopSlot.kSlot0)
                 .addP(0)
                 .addFF(0)
                 .build();
+
+        m_wheelMotor.configure(wheelConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         if (RobotBase.isSimulation()) {
             m_simulator = new FlywheelSimWrapper(Constants.FlywheelSimConstants.createSim(),

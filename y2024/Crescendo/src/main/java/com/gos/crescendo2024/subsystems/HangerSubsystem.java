@@ -8,6 +8,7 @@ import com.gos.lib.rev.SparkMaxUtil;
 import com.gos.lib.rev.alerts.SparkMaxAlerts;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
@@ -55,7 +56,7 @@ public class HangerSubsystem extends SubsystemBase {
         leftHangerMotorConfig.idleMode(IdleMode.kBrake);
         leftHangerMotorConfig.smartCurrentLimit(60);
         m_leftPidController = m_leftHangerMotor.getClosedLoopController();
-        m_leftPidProperties = createPidProperties(m_leftPidController);
+        m_leftPidProperties = createPidProperties(m_leftHangerMotor, leftHangerMotorConfig);
         m_leftHangerMotor.configure(leftHangerMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         m_leftHangerAlert = new SparkMaxAlerts(m_leftHangerMotor, "hanger a");
 
@@ -66,7 +67,7 @@ public class HangerSubsystem extends SubsystemBase {
         rightHangerMotorConfig.idleMode(IdleMode.kBrake);
         rightHangerMotorConfig.smartCurrentLimit(60);
         m_rightPidController = m_rightHangerMotor.getClosedLoopController();
-        m_rightPidProperties = createPidProperties(m_rightPidController);
+        m_rightPidProperties = createPidProperties(m_rightHangerMotor, rightHangerMotorConfig);
         m_rightHangerMotor.configure(rightHangerMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
         m_rightHangerAlert = new SparkMaxAlerts(m_rightHangerMotor, "hanger b");
 
@@ -86,8 +87,8 @@ public class HangerSubsystem extends SubsystemBase {
 
     }
 
-    private PidProperty createPidProperties(SparkClosedLoopController pidController) {
-        return new RevPidPropertyBuilder("HangerPid", false, pidController, 0)
+    private PidProperty createPidProperties(SparkMax motor, SparkMaxConfig config) {
+        return new RevPidPropertyBuilder("HangerPid", false, motor, config, ClosedLoopSlot.kSlot0)
             .addP(0.1)
             .build();
     }

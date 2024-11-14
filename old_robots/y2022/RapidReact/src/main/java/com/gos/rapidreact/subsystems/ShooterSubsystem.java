@@ -7,6 +7,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.gos.rapidreact.Constants;
 import com.gos.rapidreact.subsystems.utils.ShooterLookupTable;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
@@ -84,14 +85,14 @@ public class ShooterSubsystem extends SubsystemBase {
         m_rollerEncoder = m_roller.getEncoder();
 
         m_shooterPidController = m_leader.getClosedLoopController();
-        m_shooterPid = new RevPidPropertyBuilder("Shooter PID", false, m_shooterPidController, 0)
+        m_shooterPid = new RevPidPropertyBuilder("Shooter PID", false, m_leader, leaderConfig, ClosedLoopSlot.kSlot0)
             .addP(0.003)
             .addD(0.000055)
             .addFF(0.000176)
             .build();
 
         m_rollerPidController = m_roller.getClosedLoopController();
-        m_rollerPid = new RevPidPropertyBuilder("Roller PID", false, m_rollerPidController, 0)
+        m_rollerPid = new RevPidPropertyBuilder("Roller PID", false, m_roller, rollerConfig, ClosedLoopSlot.kSlot0)
             .addP(0)
             .addD(0)
             .addFF(0)

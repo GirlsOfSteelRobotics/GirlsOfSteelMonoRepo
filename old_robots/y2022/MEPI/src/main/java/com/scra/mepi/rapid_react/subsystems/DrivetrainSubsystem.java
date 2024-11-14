@@ -15,6 +15,7 @@ import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.SparkClosedLoopController;
 import com.scra.mepi.rapid_react.Constants;
@@ -90,8 +91,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
         leftFollowerConfig.follow(m_leftLeader);
         rightFollowerConfig.follow(m_rightLeader);
 
-        m_leftProperties = setupVelocityPidValues(m_leftController);
-        m_rightProperties = setupVelocityPidValues(m_rightController);
+        m_leftProperties = setupVelocityPidValues(m_leftLeader, leftLeaderConfig);
+        m_rightProperties = setupVelocityPidValues(m_rightLeader, rightLeaderConfig);
 
         leftLeaderConfig.encoder.positionConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
         rightLeaderConfig.encoder.positionConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
@@ -123,8 +124,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
         }
     }
 
-    private PidProperty setupVelocityPidValues(SparkClosedLoopController pidController) {
-        return new RevPidPropertyBuilder("ChassisVelocity", false, pidController, 0)
+    private PidProperty setupVelocityPidValues(SparkMax motor, SparkMaxConfig config) {
+        return new RevPidPropertyBuilder("ChassisVelocity", false, motor, config, ClosedLoopSlot.kSlot0)
             .addP(1)
             .addI(0)
             .addD(0)

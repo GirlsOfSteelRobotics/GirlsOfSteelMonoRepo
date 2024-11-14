@@ -11,6 +11,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.gos.rapidreact.Constants;
 import com.gos.rapidreact.subsystems.sim.LimelightSim;
 import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
@@ -189,8 +190,8 @@ public class ChassisSubsystem extends SubsystemBase {
 
 
         // Smart Motion stuff
-        m_leftProperties = setupPidValues(m_leftPidController);
-        m_rightProperties = setupPidValues(m_rightPidController);
+        m_leftProperties = setupPidValues(m_leaderLeft, leaderLeftConfig);
+        m_rightProperties = setupPidValues(m_leaderRight, leaderRightConfig);
 
         if (RobotBase.isSimulation()) {
             DifferentialDrivetrainSim drivetrainSim = DifferentialDrivetrainSim.createKitbotSim(
@@ -232,8 +233,8 @@ public class ChassisSubsystem extends SubsystemBase {
         m_gyroAngleRateEntry = odometryTable.getEntry("Angle (dps)");
     }
 
-    private PidProperty setupPidValues(SparkClosedLoopController pidController) {
-        return new RevPidPropertyBuilder("Chassis", false, pidController, 0)
+    private PidProperty setupPidValues(SparkMax motor, SparkMaxConfig config) {
+        return new RevPidPropertyBuilder("Chassis", false, motor, config, ClosedLoopSlot.kSlot0)
             .addP(0.00003) //0.0012776
             .addI(0)
             .addD(0)

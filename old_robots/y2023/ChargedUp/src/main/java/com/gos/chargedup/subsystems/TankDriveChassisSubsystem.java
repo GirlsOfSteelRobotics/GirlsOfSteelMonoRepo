@@ -21,6 +21,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkClosedLoopController;
@@ -159,8 +160,8 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
         m_leftPIDcontroller = m_leaderLeft.getClosedLoopController();
         m_rightPIDcontroller = m_leaderRight.getClosedLoopController();
 
-        m_leftPIDProperties = setupPidValues(m_leftPIDcontroller);
-        m_rightPIDProperties = setupPidValues(m_rightPIDcontroller);
+        m_leftPIDProperties = setupPidValues(m_leaderLeft, leaderLeftConfig);
+        m_rightPIDProperties = setupPidValues(m_leaderRight, leaderRightConfig);
 
         m_rightEncoder = m_leaderRight.getEncoder();
         m_leftEncoder = m_leaderLeft.getEncoder();
@@ -225,9 +226,9 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
         }
     }
 
-    private PidProperty setupPidValues(SparkClosedLoopController pidController) {
+    private PidProperty setupPidValues(SparkMax motor, SparkMaxConfig config) {
         if (Constants.IS_ROBOT_BLOSSOM) {
-            return new RevPidPropertyBuilder("Chassis", true, pidController, 0)
+            return new RevPidPropertyBuilder("Chassis", true, motor, config, ClosedLoopSlot.kSlot0)
                 .addP(0.6)
                 .addI(0)
                 .addD(0)
@@ -237,7 +238,7 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
                 .build();
         }
         else {
-            return new RevPidPropertyBuilder("Chassis", false, pidController, 0)
+            return new RevPidPropertyBuilder("Chassis", false, motor, config, ClosedLoopSlot.kSlot0)
                 .addP(0)
                 .addI(0)
                 .addD(0)
