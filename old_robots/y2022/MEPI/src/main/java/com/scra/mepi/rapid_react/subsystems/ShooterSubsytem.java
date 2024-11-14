@@ -83,11 +83,11 @@ public class ShooterSubsytem extends SubsystemBase {
                 LinearSystemId.createFlywheelSystem(gearbox, 0.01, 1.0);
             FlywheelSim shooterFlywheelSim = new FlywheelSim(plant, gearbox);
             m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim,
-                new RevMotorControllerSimWrapper(m_shooterMotor),
+                new RevMotorControllerSimWrapper(m_shooterMotor, gearbox),
                 RevEncoderSimWrapper.create(m_shooterMotor));
 
             m_hoodSimulator = new InstantaneousMotorSim(
-                new RevMotorControllerSimWrapper(m_hoodMotor),
+                new RevMotorControllerSimWrapper(m_hoodMotor, gearbox),
                 RevEncoderSimWrapper.create(m_hoodMotor),
                 1
             );

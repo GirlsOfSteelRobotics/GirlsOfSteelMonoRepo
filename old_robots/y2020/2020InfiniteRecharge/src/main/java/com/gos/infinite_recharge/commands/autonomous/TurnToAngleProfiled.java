@@ -7,6 +7,7 @@ import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj2.command.ProfiledPIDCommand;
 
+@SuppressWarnings("removal")
 public class TurnToAngleProfiled extends ProfiledPIDCommand {
 
     private static final GosDoubleProperty AUTO_KP = new GosDoubleProperty(

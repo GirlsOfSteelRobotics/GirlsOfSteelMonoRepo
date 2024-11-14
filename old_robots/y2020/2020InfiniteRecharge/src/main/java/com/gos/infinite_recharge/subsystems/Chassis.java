@@ -143,7 +143,6 @@ public class Chassis extends SubsystemBase {
         double kd = 0;
         double kff = 0.005800;
         boolean lockConstants = false;
-        double minVel = 0; // inch/sec
         double maxVel = 72; // inch/sec
         double maxAcc = 144; // inch/sec/sec
         double allowedErr = 0;
@@ -170,11 +169,8 @@ public class Chassis extends SubsystemBase {
 
         masterLeftConfig.closedLoop.outputRange(kMinOutput, kMaxOutput);
         masterRightConfig.closedLoop.outputRange(kMinOutput, kMaxOutput);
-        masterLeftConfig.closedLoop.smartMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
-        masterRightConfig.closedLoop.smartMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
-
-        masterLeftConfig.closedLoop.smartMotion.minOutputVelocity(minVel, smartMotionSlot);
-        masterRightConfig.closedLoop.smartMotion.minOutputVelocity(minVel, smartMotionSlot);
+        masterLeftConfig.closedLoop.maxMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
+        masterRightConfig.closedLoop.maxMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
 
         m_leftProperties.updateIfChanged(true);
         m_rightProperties.updateIfChanged(true);
@@ -212,8 +208,8 @@ public class Chassis extends SubsystemBase {
 
             m_simulator = new DifferentialDrivetrainSimWrapper(
                     drivetrainSim,
-                    new RevMotorControllerSimWrapper(m_masterLeft),
-                    new RevMotorControllerSimWrapper(m_masterRight),
+                    new RevMotorControllerSimWrapper(m_masterLeft, kDriveGearbox),
+                    new RevMotorControllerSimWrapper(m_masterRight, kDriveGearbox),
                     RevEncoderSimWrapper.create(m_masterLeft),
                     RevEncoderSimWrapper.create(m_masterRight),
                     new NavxWrapper().getYawGyro());
@@ -334,8 +330,8 @@ public class Chassis extends SubsystemBase {
     }
 
     public void driveDistance(double leftPosition, double rightPosition) {
-        m_leftPidController.setReference(leftPosition, ControlType.kSmartMotion);
-        m_rightPidController.setReference(rightPosition, ControlType.kSmartMotion);
+        m_leftPidController.setReference(leftPosition, ControlType.kMAXMotionPositionControl);
+        m_rightPidController.setReference(rightPosition, ControlType.kMAXMotionPositionControl);
         m_drive.feed();
     }
 

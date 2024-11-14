@@ -125,6 +125,7 @@ public class AprilTagCamera {
         return m_maybeResult;
     }
 
+    @SuppressWarnings("PMD.CyclomaticComplexity")
     public Matrix<N3, N1> getEstimationStdDevs(Pose2d estimatedPose) {
         Matrix<N3, N1> estStdDevs = m_singleTagStddev;
         if (m_lastPipelineResult.isEmpty()) {

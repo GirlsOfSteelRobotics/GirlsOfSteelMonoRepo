@@ -83,8 +83,13 @@ public class ObjectDetection {
 
     public List<Pose2d> objectLocations(Pose2d chassisLocation) {
         List<Pose2d> objectLocationsList = new ArrayList<>();
-        PhotonPipelineResult lastestResult = m_photonCamera.getLatestResult();
-        for (PhotonTrackedTarget result : lastestResult.getTargets()) {
+        List<PhotonPipelineResult> results = m_photonCamera.getAllUnreadResults();
+        if (results.isEmpty()) {
+            return objectLocationsList;
+        }
+
+        PhotonPipelineResult latestResult = results.get(results.size() - 1);
+        for (PhotonTrackedTarget result : latestResult.getTargets()) {
             Rotation2d yaw = Rotation2d.fromDegrees(-result.getYaw());
             double distance = calculateDistanceToTarget(
                 ROBOT_TO_CAMERA.getZ(),

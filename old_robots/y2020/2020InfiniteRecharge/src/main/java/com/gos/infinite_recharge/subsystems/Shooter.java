@@ -99,7 +99,7 @@ public class Shooter extends SubsystemBase {
             FlywheelSim flywheelSim = new FlywheelSim(plant, gearbox);
 
             m_simulator = new FlywheelSimWrapper(flywheelSim,
-                    new RevMotorControllerSimWrapper(m_master),
+                    new RevMotorControllerSimWrapper(m_master, gearbox),
                     RevEncoderSimWrapper.create(m_master));
         }
     }

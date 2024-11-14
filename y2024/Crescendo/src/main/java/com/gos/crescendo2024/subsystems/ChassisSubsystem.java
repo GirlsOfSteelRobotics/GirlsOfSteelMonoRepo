@@ -57,6 +57,8 @@ import org.snobotv2.module_wrappers.phoenix6.Pigeon2Wrapper;
 import java.io.IOException;
 import java.util.List;
 
+import static edu.wpi.first.units.Units.Degrees;
+
 @SuppressWarnings("PMD.GodClass")
 public class ChassisSubsystem extends SubsystemBase {
     private static final double WHEEL_BASE = 0.381;
@@ -176,7 +178,7 @@ public class ChassisSubsystem extends SubsystemBase {
         m_shootingPolygon = new ValidShootingPolygon(m_field);
 
         m_logging = new LoggingUtil("Chassis");
-        m_logging.addDouble("GyroAngle", m_gyro::getAngle);
+        m_logging.addDouble("GyroAngle", () -> m_gyro.getYaw().getValue().in(Degrees));
         m_logging.addDouble("PoseAngle", () -> getPose().getRotation().getDegrees());
         m_logging.addDouble("Angle Setpoint", m_turnAnglePIDVelocity::getSetpoint);
         m_logging.addBoolean("At Angle Setpoint", this::isAngleAtGoal);

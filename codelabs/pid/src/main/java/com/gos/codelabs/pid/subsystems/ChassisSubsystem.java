@@ -1,6 +1,7 @@
 package com.gos.codelabs.pid.subsystems;
 
 import com.gos.codelabs.pid.Constants;
+import com.gos.codelabs.pid.Constants.DrivetrainConstants;
 import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.revrobotics.spark.SparkBase.ControlType;
@@ -96,9 +97,9 @@ public class ChassisSubsystem extends SubsystemBase {
 
         if (RobotBase.isSimulation()) {
             m_simulator = new DifferentialDrivetrainSimWrapper(
-                    Constants.DrivetrainConstants.createSim(),
-                    new RevMotorControllerSimWrapper(m_leftDriveA),
-                    new RevMotorControllerSimWrapper(m_rightDriveA),
+                    DrivetrainConstants.createSim(),
+                    new RevMotorControllerSimWrapper(m_leftDriveA, DrivetrainConstants.DRIVE_GEARBOX),
+                    new RevMotorControllerSimWrapper(m_rightDriveA, DrivetrainConstants.DRIVE_GEARBOX),
                     RevEncoderSimWrapper.create(m_leftDriveA),
                     RevEncoderSimWrapper.create(m_rightDriveA),
                     new ADXRS450GyroWrapper(m_gyro));
@@ -218,8 +219,8 @@ public class ChassisSubsystem extends SubsystemBase {
     }
 
     public void driveDistanceSmartMotionControl(double leftDistance, double rightDistance) {
-        m_leftPid.setReference(leftDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION.value);
-        m_rightPid.setReference(rightDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION.value);
+        m_leftPid.setReference(leftDistance, ControlType.kMAXMotionPositionControl, PID_SLOT_SMART_MOTION.value);
+        m_rightPid.setReference(rightDistance, ControlType.kMAXMotionPositionControl, PID_SLOT_SMART_MOTION.value);
         m_differentialDrive.feed();
 
         SmartDashboard.putNumber("Left SM Goal", leftDistance);

@@ -26,6 +26,8 @@ public class FollowTrajectory extends BaseRamseteCoordinateGuiCommand {
 
     }
 
+
+    @SuppressWarnings("removal")
     public FollowTrajectory(Trajectory trajectory, Chassis chassis) {
         super(trajectory,
             new RamseteController(AutoConstants.RAMSETE_B, AutoConstants.RAMSETE_ZETA),

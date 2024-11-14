@@ -32,6 +32,7 @@ public class DriveTrajectoryCommand extends BaseRamseteCoordinateGuiCommand {
     }
 
 
+    @SuppressWarnings("removal")
     public DriveTrajectoryCommand(Supplier<Trajectory> trajectorySupplier, ChassisSubsystem chassis) {
         super(trajectorySupplier.get(),
                 new RamseteController(AutoConstants.RAMSETE_B, AutoConstants.RAMSETE_ZETA),

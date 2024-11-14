@@ -34,6 +34,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -217,8 +218,8 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
                 null);
             m_simulator = new DifferentialDrivetrainSimWrapper(
                 drivetrainSim,
-                new RevMotorControllerSimWrapper(m_leaderLeft),
-                new RevMotorControllerSimWrapper(m_leaderRight),
+                new RevMotorControllerSimWrapper(m_leaderLeft, DCMotor.getNEO(2)),
+                new RevMotorControllerSimWrapper(m_leaderRight, DCMotor.getNEO(2)),
                 RevEncoderSimWrapper.create(m_leaderLeft),
                 RevEncoderSimWrapper.create(m_leaderRight),
                 new Pigeon2Wrapper(m_gyro));
@@ -302,7 +303,7 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
     public void turnToAngle(double angleGoal) {
         SmartDashboard.putNumber("goal angle chassis pid", angleGoal);
         double steerVoltage = m_turnAnglePID.calculate(m_odometry.getPoseMeters().getRotation().getDegrees(), angleGoal);
-        AngularVelocity currentVelocity = DegreesPerSecond.of(m_gyro.getRate());
+        AngularVelocity currentVelocity = m_gyro.getAngularVelocityZWorld().getValue();
         AngularVelocity goalVelocity = DegreesPerSecond.of(m_turnAnglePID.getSetpoint().velocity);
         steerVoltage += m_turnAnglePIDFFProperty.calculate(currentVelocity, goalVelocity).in(Volts);
 

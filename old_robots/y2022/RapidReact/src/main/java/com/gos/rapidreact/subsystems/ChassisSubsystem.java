@@ -26,6 +26,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTable;
@@ -45,6 +46,7 @@ import org.snobotv2.module_wrappers.rev.RevMotorControllerSimWrapper;
 import org.snobotv2.sim_wrappers.DifferentialDrivetrainSimWrapper;
 
 import static edu.wpi.first.units.Units.Degree;
+import static edu.wpi.first.units.Units.DegreesPerSecond;
 
 
 @SuppressWarnings("PMD.TooManyFields")
@@ -201,8 +203,8 @@ public class ChassisSubsystem extends SubsystemBase {
                 null);
             m_simulator = new DifferentialDrivetrainSimWrapper(
                 drivetrainSim,
-                new RevMotorControllerSimWrapper(m_leaderLeft),
-                new RevMotorControllerSimWrapper(m_leaderRight),
+                new RevMotorControllerSimWrapper(m_leaderLeft, DCMotor.getCIM(2)),
+                new RevMotorControllerSimWrapper(m_leaderRight, DCMotor.getCIM(2)),
                 RevEncoderSimWrapper.create(m_leaderLeft),
                 RevEncoderSimWrapper.create(m_leaderRight),
                 new Pigeon2Wrapper(m_gyro));
@@ -251,7 +253,7 @@ public class ChassisSubsystem extends SubsystemBase {
         m_field.setRobotPose(getPose());
         m_coordinateGuiPublisher.publish(getPose());
         m_gyroAngleEntry.setNumber(getYawAngle());
-        m_gyroAngleRateEntry.setNumber(m_gyro.getRate());
+        m_gyroAngleRateEntry.setNumber(m_gyro.getAngularVelocityZWorld().getValue().in(DegreesPerSecond));
 
         m_leftProperties.updateIfChanged();
         m_rightProperties.updateIfChanged();
@@ -290,8 +292,8 @@ public class ChassisSubsystem extends SubsystemBase {
         double rightError = rightDistance - getRightEncoderDistance();
         double staticFrictionLeft = KS_VOLTS_FORWARD * Math.signum(leftError);
         double staticFrictionRight = KS_VOLTS_FORWARD * Math.signum(rightError);
-        m_leftPidController.setReference(leftDistance, ControlType.kSmartMotion, 0, staticFrictionLeft);
-        m_rightPidController.setReference(rightDistance, ControlType.kSmartMotion, 0, staticFrictionRight);
+        m_leftPidController.setReference(leftDistance, ControlType.kMAXMotionPositionControl, 0, staticFrictionLeft);
+        m_rightPidController.setReference(rightDistance, ControlType.kMAXMotionPositionControl, 0, staticFrictionRight);
         m_drive.feed();
     }
 

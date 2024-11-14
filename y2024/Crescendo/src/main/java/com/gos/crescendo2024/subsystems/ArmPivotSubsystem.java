@@ -30,6 +30,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.RobotController;
@@ -43,6 +44,10 @@ import org.snobotv2.sim_wrappers.SingleJointedArmSimWrapper;
 
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
+
+import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.DegreesPerSecond;
+import static edu.wpi.first.units.Units.Volts;
 
 @SuppressWarnings("PMD.GodClass")
 public class ArmPivotSubsystem extends SubsystemBase {
@@ -169,7 +174,7 @@ public class ArmPivotSubsystem extends SubsystemBase {
             DCMotor gearbox = DCMotor.getNeo550(1);
             SingleJointedArmSim armSim = new SingleJointedArmSim(gearbox, 252, 1,
                 0.381, Units.degreesToRadians(-2), Units.degreesToRadians(90), true, 0);
-            m_pivotSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotMotor),
+            m_pivotSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotMotor, gearbox),
                 RevEncoderSimWrapper.create(m_pivotMotor), true);
         }
 
@@ -205,13 +210,13 @@ public class ArmPivotSubsystem extends SubsystemBase {
         if (currentAngle < ARM_MAX_ANGLE || MathUtil.inputModulus(goalAngle, -180, 180) < MathUtil.inputModulus(currentAngle, -180, 180)) {
             m_profilePID.calculate(currentAngle, goalAngle);
             TrapezoidProfile.State setpoint = m_profilePID.getSetpoint();
-            double feedForwardVolts = m_wpiFeedForward.calculate(
-                Units.degreesToRadians(currentAngle),
-                Units.degreesToRadians(setpoint.velocity));
 
+            Voltage feedForwardVolts = m_wpiFeedForward.calculate(
+                Degrees.of(currentAngle),
+                DegreesPerSecond.of(setpoint.velocity));
 
-            m_sparkPidController.setReference(setpoint.position, ControlType.kPosition, 0, feedForwardVolts);
-            SmartDashboard.putNumber("feedForwardVolts", feedForwardVolts);
+            m_sparkPidController.setReference(setpoint.position, ControlType.kPosition, 0, feedForwardVolts.in(Volts));
+            SmartDashboard.putNumber("feedForwardVolts", feedForwardVolts.in(Volts));
         }
         else {
             stopArmMotor();

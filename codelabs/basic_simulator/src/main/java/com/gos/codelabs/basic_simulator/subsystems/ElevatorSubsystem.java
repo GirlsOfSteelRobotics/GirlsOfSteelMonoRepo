@@ -65,7 +65,7 @@ public class ElevatorSubsystem extends SubsystemBase implements AutoCloseable {
                     ElevatorSimConstants.K_MAX_ELEVATOR_HEIGHT, true, 0);
 
             m_elevatorSim = new ElevatorSimWrapper(sim,
-                    new RevMotorControllerSimWrapper(m_liftMotor),
+                    new RevMotorControllerSimWrapper(m_liftMotor, ElevatorSimConstants.K_ELEVATOR_GEARBOX),
                     RevEncoderSimWrapper.create(m_liftMotor));
             m_elevatorSim.setLowerLimitSwitch(new BaseDigitalInputWrapper(new DIOSim(m_lowerLimitSwitch)::setValue));
             m_elevatorSim.setUpperLimitSwitch(new BaseDigitalInputWrapper(new DIOSim(m_upperLimitSwitch)::setValue));

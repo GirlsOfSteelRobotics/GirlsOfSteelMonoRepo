@@ -110,8 +110,8 @@ public class ChassisSubsystem extends SubsystemBase implements AutoCloseable {
         if (RobotBase.isSimulation()) {
             m_simulator = new DifferentialDrivetrainSimWrapper(
                     DrivetrainConstants.createSim(),
-                    new RevMotorControllerSimWrapper(m_leftDriveA),
-                    new RevMotorControllerSimWrapper(m_rightDriveA),
+                    new RevMotorControllerSimWrapper(m_leftDriveA, DrivetrainConstants.DRIVE_GEARBOX),
+                    new RevMotorControllerSimWrapper(m_rightDriveA, DrivetrainConstants.DRIVE_GEARBOX),
                     RevEncoderSimWrapper.create(m_leftDriveA),
                     RevEncoderSimWrapper.create(m_rightDriveA),
                     new ADXRS450GyroWrapper(m_gyro));

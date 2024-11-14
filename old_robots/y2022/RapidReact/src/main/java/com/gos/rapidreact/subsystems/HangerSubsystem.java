@@ -66,11 +66,11 @@ public class HangerSubsystem extends SubsystemBase {
             DCMotor gearbox = DCMotor.getNeo550(2);
             ElevatorSim leftElevatorSim = new ElevatorSim(gearbox, GEAR, Units.lbsToKilograms(10), Units.inchesToMeters(2), Units.feetToMeters(0), Units.feetToMeters(4), true, 0);
             m_leftSimulator = new ElevatorSimWrapper(leftElevatorSim,
-                new RevMotorControllerSimWrapper(m_leftHanger),
+                new RevMotorControllerSimWrapper(m_leftHanger, gearbox),
                 RevEncoderSimWrapper.create(m_leftHanger));
             ElevatorSim rightElevatorSim = new ElevatorSim(DCMotor.getNeo550(2), GEAR, Units.lbsToKilograms(10), Units.inchesToMeters(2), Units.feetToMeters(0), Units.feetToMeters(4), true, 0);
             m_rightSimulator = new ElevatorSimWrapper(rightElevatorSim,
-                new RevMotorControllerSimWrapper(m_rightHanger),
+                new RevMotorControllerSimWrapper(m_rightHanger, gearbox),
                 RevEncoderSimWrapper.create(m_rightHanger));
         }
     }

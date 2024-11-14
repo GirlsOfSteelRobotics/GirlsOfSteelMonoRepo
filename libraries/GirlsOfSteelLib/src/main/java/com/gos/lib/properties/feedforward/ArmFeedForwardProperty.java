@@ -1,6 +1,9 @@
 package com.gos.lib.properties.feedforward;
 
 import edu.wpi.first.math.controller.ArmFeedforward;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.Voltage;
 
 public class ArmFeedForwardProperty extends BaseFeedForwardProperty {
 
@@ -50,6 +53,20 @@ public class ArmFeedForwardProperty extends BaseFeedForwardProperty {
     @Deprecated(forRemoval = true, since = "2025")
     public double calculate(double positionRadians, double velocityRadPerSec, double accelRadPerSecSquared) {
         return m_feedForward.calculate(positionRadians, velocityRadPerSec, accelRadPerSecSquared);
+    }
+
+    /**
+     * Calculates the feedforward from the gains and setpoints assuming discrete control when the
+     * velocity does not change.
+     *
+     * @param currentAngle The current angle. This angle should be measured from the horizontal (i.e.
+     *     if the provided angle is 0, the arm should be parallel to the floor). If your encoder does
+     *     not follow this convention, an offset should be added.
+     * @param currentVelocity The current velocity.
+     * @return The computed feedforward in volts.
+     */
+    public Voltage calculate(Angle currentAngle, AngularVelocity currentVelocity) {
+        return m_feedForward.calculate(currentAngle, currentVelocity);
     }
 
     public double getKs() {

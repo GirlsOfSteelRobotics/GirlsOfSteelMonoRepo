@@ -115,7 +115,7 @@ public class ShooterSubsystem extends SubsystemBase {
                 LinearSystemId.createFlywheelSystem(shooterGearbox, 0.01, 1.0);
             FlywheelSim shooterFlywheelSim = new FlywheelSim(shooterPlant, shooterGearbox);
             m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim,
-                new RevMotorControllerSimWrapper(m_leader),
+                new RevMotorControllerSimWrapper(m_leader, shooterGearbox),
                 RevEncoderSimWrapper.create(m_leader));
 
             DCMotor backspinGearbox = DCMotor.getNeo550(2);
@@ -123,7 +123,7 @@ public class ShooterSubsystem extends SubsystemBase {
                 LinearSystemId.createFlywheelSystem(shooterGearbox, 0.01, 1.0);
             FlywheelSim backspinFlywheelSim = new FlywheelSim(backspinPlant, backspinGearbox);
             m_backspinSimulator = new FlywheelSimWrapper(backspinFlywheelSim,
-                new RevMotorControllerSimWrapper(m_roller),
+                new RevMotorControllerSimWrapper(m_roller, shooterGearbox),
                 RevEncoderSimWrapper.create(m_roller));
         }
 

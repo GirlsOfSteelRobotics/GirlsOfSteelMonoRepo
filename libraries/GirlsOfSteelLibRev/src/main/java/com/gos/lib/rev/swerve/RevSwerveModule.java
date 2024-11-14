@@ -168,8 +168,8 @@ public class RevSwerveModule {
             );
             m_simWrapper = new SwerveModuleSimWrapper(
                 moduleSim,
-                new RevMotorControllerSimWrapper(m_drivingSparkMax),
-                new RevMotorControllerSimWrapper(m_turningSparkMax),
+                new RevMotorControllerSimWrapper(m_drivingSparkMax, drivingMotor),
+                new RevMotorControllerSimWrapper(m_turningSparkMax, turningMotor),
                 RevEncoderSimWrapper.create(m_drivingSparkMax),
                 RevEncoderSimWrapper.create(m_turningSparkMax),
                 RevSwerveModuleConstants.WHEEL_DIAMETER_METERS * Math.PI,
@@ -259,18 +259,15 @@ public class RevSwerveModule {
      */
     public void setDesiredState(SwerveModuleState desiredState) {
         // Apply chassis angular offset to the desired state.
-        SwerveModuleState correctedDesiredState = new SwerveModuleState();
-        correctedDesiredState.speedMetersPerSecond = desiredState.speedMetersPerSecond;
-        correctedDesiredState.angle = desiredState.angle.plus(Rotation2d.fromRadians(m_chassisAngularOffset));
+        m_desiredState = new SwerveModuleState();
+        m_desiredState.speedMetersPerSecond = desiredState.speedMetersPerSecond;
+        m_desiredState.angle = desiredState.angle.plus(Rotation2d.fromRadians(m_chassisAngularOffset));
 
         // Optimize the reference state to avoid spinning further than 90 degrees.
-        SwerveModuleState optimizedDesiredState = SwerveModuleState.optimize(correctedDesiredState,
-            new Rotation2d(getTurningEncoderAngle()));
+        m_desiredState.optimize(new Rotation2d(getTurningEncoderAngle()));
 
         // Command driving and turning SPARKS MAX towards their respective setpoints.
-        m_drivingPIDController.setReference(optimizedDesiredState.speedMetersPerSecond, ControlType.kVelocity);
-
-        m_desiredState = optimizedDesiredState;
+        m_drivingPIDController.setReference(m_desiredState.speedMetersPerSecond, ControlType.kVelocity);
         m_turningPIDController.setReference(m_desiredState.angle.getRadians(), ControlType.kPosition);
 
     }

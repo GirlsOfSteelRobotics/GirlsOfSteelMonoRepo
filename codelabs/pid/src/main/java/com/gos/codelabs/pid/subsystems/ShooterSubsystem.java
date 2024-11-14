@@ -8,6 +8,7 @@
 package com.gos.codelabs.pid.subsystems;
 
 import com.gos.codelabs.pid.Constants;
+import com.gos.codelabs.pid.Constants.FlywheelSimConstants;
 import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.revrobotics.spark.SparkBase.ControlType;
@@ -49,8 +50,8 @@ public class ShooterSubsystem extends SubsystemBase {
         m_wheelMotor.configure(wheelConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         if (RobotBase.isSimulation()) {
-            m_simulator = new FlywheelSimWrapper(Constants.FlywheelSimConstants.createSim(),
-                    new RevMotorControllerSimWrapper(m_wheelMotor),
+            m_simulator = new FlywheelSimWrapper(FlywheelSimConstants.createSim(),
+                    new RevMotorControllerSimWrapper(m_wheelMotor, FlywheelSimConstants.GEARBOX),
                     RevEncoderSimWrapper.create(m_wheelMotor));
         }
     }

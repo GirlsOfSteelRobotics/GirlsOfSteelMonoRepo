@@ -22,7 +22,7 @@ public class ChassisCurvatureDriveCommand extends Command {
 
     @Override
     public void execute() {
-        m_chassis.setCurvatureDrive(-m_joystick.getLeftY(), -m_joystick.getRightX(), m_joystick.getRightBumper());
+        m_chassis.setCurvatureDrive(-m_joystick.getLeftY(), -m_joystick.getRightX(), m_joystick.getRightBumperButton());
     }
 
     @Override

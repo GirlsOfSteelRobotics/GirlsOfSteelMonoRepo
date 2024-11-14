@@ -1,6 +1,7 @@
 package com.gos.codelabs.pid.subsystems;
 
 import com.gos.codelabs.pid.Constants;
+import com.gos.codelabs.pid.Constants.ElevatorSimConstants;
 import com.gos.lib.properties.GosDoubleProperty;
 import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
@@ -70,8 +71,8 @@ public class ElevatorSubsystem extends SubsystemBase {
         m_liftMotor.configure(liftConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         if (RobotBase.isSimulation()) {
-            m_elevatorSim = new ElevatorSimWrapper(Constants.ElevatorSimConstants.createSim(),
-                    new RevMotorControllerSimWrapper(m_liftMotor),
+            m_elevatorSim = new ElevatorSimWrapper(ElevatorSimConstants.createSim(),
+                    new RevMotorControllerSimWrapper(m_liftMotor, ElevatorSimConstants.ELEVATOR_GEARBOX),
                     RevEncoderSimWrapper.create(m_liftMotor));
         }
     }
@@ -87,7 +88,7 @@ public class ElevatorSubsystem extends SubsystemBase {
 
     public boolean goToPosition(double position) {
         m_desiredHeight = position;
-        m_pidController.setReference(position, ControlType.kSmartMotion, 0, GRAVITY_COMPENSATION.getValue(), ArbFFUnits.kPercentOut);
+        m_pidController.setReference(position, ControlType.kMAXMotionPositionControl, 0, GRAVITY_COMPENSATION.getValue(), ArbFFUnits.kPercentOut);
         return false;
     }
 

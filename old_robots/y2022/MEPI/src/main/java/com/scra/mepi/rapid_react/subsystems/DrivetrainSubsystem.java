@@ -25,6 +25,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -115,8 +116,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
                 null);
             m_simulator = new DifferentialDrivetrainSimWrapper(
                 drivetrainSim,
-                new RevMotorControllerSimWrapper(m_leftLeader),
-                new RevMotorControllerSimWrapper(m_rightLeader),
+                new RevMotorControllerSimWrapper(m_leftLeader, DCMotor.getNEO(2)),
+                new RevMotorControllerSimWrapper(m_rightLeader, DCMotor.getNEO(2)),
                 RevEncoderSimWrapper.create(m_leftLeader),
                 RevEncoderSimWrapper.create(m_rightLeader),
                 new NavxWrapper().getYawGyro());
@@ -147,8 +148,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
     }
 
     public void applyWheelSpeed(DifferentialDriveWheelSpeeds speeds) {
-        m_leftController.setReference(speeds.leftMetersPerSecond, ControlType.kSmartVelocity);
-        m_rightController.setReference(speeds.rightMetersPerSecond, ControlType.kSmartVelocity);
+        m_leftController.setReference(speeds.leftMetersPerSecond, ControlType.kVelocity);
+        m_rightController.setReference(speeds.rightMetersPerSecond, ControlType.kVelocity);
     }
 
     public Pose2d getPose() {

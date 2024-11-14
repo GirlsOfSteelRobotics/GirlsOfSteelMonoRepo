@@ -154,9 +154,9 @@ public class CollectorSubsystem extends SubsystemBase {
             DCMotor gearbox = DCMotor.getNeo550(1);
             SingleJointedArmSim armSim = new SingleJointedArmSim(gearbox, GEARING, J_KG_METERS_SQUARED,
                 ARM_LENGTH_METERS, MIN_ANGLE_RADS, MAX_ANGLE_RADS, SIMULATE_GRAVITY, 0);
-            m_leftSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotLeft),
+            m_leftSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotLeft, gearbox),
                 RevEncoderSimWrapper.create(m_pivotLeft), true);
-            m_rightSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotRight),
+            m_rightSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotRight, gearbox),
                 RevEncoderSimWrapper.create(m_pivotRight), true);
         }
     }
@@ -266,8 +266,8 @@ public class CollectorSubsystem extends SubsystemBase {
             double staticFrictionRight = PIVOT_KS * Math.signum(errorRight);
             double arbFeedforwardLeft = gravityOffsetLeft + staticFrictionLeft;
             double arbFeedforwardRight = gravityOffsetRight + staticFrictionRight;
-            m_pidControllerLeft.setReference(pivotAngleDegreesGoal, ControlType.kSmartMotion, 0, arbFeedforwardLeft);
-            m_pidControllerRight.setReference(pivotAngleDegreesGoal, ControlType.kSmartMotion, 0, arbFeedforwardRight);
+            m_pidControllerLeft.setReference(pivotAngleDegreesGoal, ControlType.kMAXMotionPositionControl, 0, arbFeedforwardLeft);
+            m_pidControllerRight.setReference(pivotAngleDegreesGoal, ControlType.kMAXMotionPositionControl, 0, arbFeedforwardRight);
 
             m_leftGravityOffsetVoltage.setNumber(gravityOffsetLeft);
             m_rightGravityOffsetVoltage.setNumber(gravityOffsetRight);
