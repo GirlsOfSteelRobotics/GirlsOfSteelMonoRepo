@@ -1,0 +1,744 @@
+From 6c89c65db1ae19bc411cddb8f3c12be75bb97784 Mon Sep 17 00:00:00 2001
+From: PJ Reiniger <pj.reiniger@gmail.com>
+Date: Wed, 13 Nov 2024 23:17:11 -0500
+Subject: [PATCH 3/3] Fix deprecation
+
+---
+ .../subsystems/ChassisSubsystem.java          |  4 ++--
+ .../subsystems/ElevatorSubsystem.java         |  2 +-
+ .../auton/DriveTrajectoryCommand.java         |  1 +
+ .../pid/subsystems/ChassisSubsystem.java      | 11 +++++----
+ .../pid/subsystems/ElevatorSubsystem.java     |  7 +++---
+ .../pid/subsystems/ShooterSubsystem.java      |  5 ++--
+ .../ChassisCurvatureDriveCommand.java         |  2 +-
+ .../feedforward/ArmFeedForwardProperty.java   | 17 +++++++++++++
+ .../gos/lib/photonvision/AprilTagCamera.java  |  1 +
+ .../gos/lib/rev/swerve/RevSwerveModule.java   | 17 ++++++-------
+ .../commands/autonomous/FollowTrajectory.java |  2 ++
+ .../autonomous/TurnToAngleProfiled.java       |  1 +
+ .../infinite_recharge/subsystems/Chassis.java | 16 +++++--------
+ .../infinite_recharge/subsystems/Shooter.java |  2 +-
+ .../subsystems/DrivetrainSubsystem.java       |  9 +++----
+ .../subsystems/ShooterSubsytem.java           |  4 ++--
+ .../commands/autonomous/FollowTrajectory.java |  1 +
+ .../subsystems/ChassisSubsystem.java          | 12 ++++++----
+ .../subsystems/CollectorSubsystem.java        |  8 +++----
+ .../subsystems/HangerSubsystem.java           |  4 ++--
+ .../subsystems/ShooterSubsystem.java          |  4 ++--
+ .../subsystems/ArmPivotSubsystem.java         | 24 +++++++++++++------
+ .../gos/chargedup/subsystems/BaseChassis.java |  5 ++--
+ .../subsystems/TankDriveChassisSubsystem.java |  7 +++---
+ .../gos/crescendo2024/ObjectDetection.java    |  9 +++++--
+ .../subsystems/ArmPivotSubsystem.java         | 17 ++++++++-----
+ .../subsystems/ChassisSubsystem.java          |  4 +++-
+ 27 files changed, 121 insertions(+), 75 deletions(-)
+
+diff --git a/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ChassisSubsystem.java b/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ChassisSubsystem.java
+index b4cb38342..27d84a11b 100644
+--- a/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ChassisSubsystem.java
++++ b/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ChassisSubsystem.java
+@@ -110,8 +110,8 @@ public class ChassisSubsystem extends SubsystemBase implements AutoCloseable {
+         if (RobotBase.isSimulation()) {
+             m_simulator = new DifferentialDrivetrainSimWrapper(
+                     DrivetrainConstants.createSim(),
+-                    new RevMotorControllerSimWrapper(m_leftDriveA),
+-                    new RevMotorControllerSimWrapper(m_rightDriveA),
++                    new RevMotorControllerSimWrapper(m_leftDriveA, DrivetrainConstants.DRIVE_GEARBOX),
++                    new RevMotorControllerSimWrapper(m_rightDriveA, DrivetrainConstants.DRIVE_GEARBOX),
+                     RevEncoderSimWrapper.create(m_leftDriveA),
+                     RevEncoderSimWrapper.create(m_rightDriveA),
+                     new ADXRS450GyroWrapper(m_gyro));
+diff --git a/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ElevatorSubsystem.java b/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ElevatorSubsystem.java
+index bb55384c4..bbee36df0 100644
+--- a/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ElevatorSubsystem.java
++++ b/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ElevatorSubsystem.java
+@@ -65,7 +65,7 @@ public class ElevatorSubsystem extends SubsystemBase implements AutoCloseable {
+                     ElevatorSimConstants.K_MAX_ELEVATOR_HEIGHT, true, 0);
+ 
+             m_elevatorSim = new ElevatorSimWrapper(sim,
+-                    new RevMotorControllerSimWrapper(m_liftMotor),
++                    new RevMotorControllerSimWrapper(m_liftMotor, ElevatorSimConstants.K_ELEVATOR_GEARBOX),
+                     RevEncoderSimWrapper.create(m_liftMotor));
+             m_elevatorSim.setLowerLimitSwitch(new BaseDigitalInputWrapper(new DIOSim(m_lowerLimitSwitch)::setValue));
+             m_elevatorSim.setUpperLimitSwitch(new BaseDigitalInputWrapper(new DIOSim(m_upperLimitSwitch)::setValue));
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/commands/auton/DriveTrajectoryCommand.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/commands/auton/DriveTrajectoryCommand.java
+index 10c0c8b96..6a67d984f 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/commands/auton/DriveTrajectoryCommand.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/commands/auton/DriveTrajectoryCommand.java
+@@ -32,6 +32,7 @@ public class DriveTrajectoryCommand extends BaseRamseteCoordinateGuiCommand {
+     }
+ 
+ 
++    @SuppressWarnings("removal")
+     public DriveTrajectoryCommand(Supplier<Trajectory> trajectorySupplier, ChassisSubsystem chassis) {
+         super(trajectorySupplier.get(),
+                 new RamseteController(AutoConstants.RAMSETE_B, AutoConstants.RAMSETE_ZETA),
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
+index 12fb7ef3e..47c5243f9 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
+@@ -1,6 +1,7 @@
+ package com.gos.codelabs.pid.subsystems;
+ 
+ import com.gos.codelabs.pid.Constants;
++import com.gos.codelabs.pid.Constants.DrivetrainConstants;
+ import com.gos.lib.properties.pid.PidProperty;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.spark.SparkBase.ControlType;
+@@ -96,9 +97,9 @@ public class ChassisSubsystem extends SubsystemBase {
+ 
+         if (RobotBase.isSimulation()) {
+             m_simulator = new DifferentialDrivetrainSimWrapper(
+-                    Constants.DrivetrainConstants.createSim(),
+-                    new RevMotorControllerSimWrapper(m_leftDriveA),
+-                    new RevMotorControllerSimWrapper(m_rightDriveA),
++                    DrivetrainConstants.createSim(),
++                    new RevMotorControllerSimWrapper(m_leftDriveA, DrivetrainConstants.DRIVE_GEARBOX),
++                    new RevMotorControllerSimWrapper(m_rightDriveA, DrivetrainConstants.DRIVE_GEARBOX),
+                     RevEncoderSimWrapper.create(m_leftDriveA),
+                     RevEncoderSimWrapper.create(m_rightDriveA),
+                     new ADXRS450GyroWrapper(m_gyro));
+@@ -218,8 +219,8 @@ public class ChassisSubsystem extends SubsystemBase {
+     }
+ 
+     public void driveDistanceSmartMotionControl(double leftDistance, double rightDistance) {
+-        m_leftPid.setReference(leftDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION.value);
+-        m_rightPid.setReference(rightDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION.value);
++        m_leftPid.setReference(leftDistance, ControlType.kMAXMotionPositionControl, PID_SLOT_SMART_MOTION.value);
++        m_rightPid.setReference(rightDistance, ControlType.kMAXMotionPositionControl, PID_SLOT_SMART_MOTION.value);
+         m_differentialDrive.feed();
+ 
+         SmartDashboard.putNumber("Left SM Goal", leftDistance);
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
+index 2ff2a450e..e19158c86 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
+@@ -1,6 +1,7 @@
+ package com.gos.codelabs.pid.subsystems;
+ 
+ import com.gos.codelabs.pid.Constants;
++import com.gos.codelabs.pid.Constants.ElevatorSimConstants;
+ import com.gos.lib.properties.GosDoubleProperty;
+ import com.gos.lib.properties.pid.PidProperty;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+@@ -70,8 +71,8 @@ public class ElevatorSubsystem extends SubsystemBase {
+         m_liftMotor.configure(liftConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+ 
+         if (RobotBase.isSimulation()) {
+-            m_elevatorSim = new ElevatorSimWrapper(Constants.ElevatorSimConstants.createSim(),
+-                    new RevMotorControllerSimWrapper(m_liftMotor),
++            m_elevatorSim = new ElevatorSimWrapper(ElevatorSimConstants.createSim(),
++                    new RevMotorControllerSimWrapper(m_liftMotor, ElevatorSimConstants.ELEVATOR_GEARBOX),
+                     RevEncoderSimWrapper.create(m_liftMotor));
+         }
+     }
+@@ -87,7 +88,7 @@ public class ElevatorSubsystem extends SubsystemBase {
+ 
+     public boolean goToPosition(double position) {
+         m_desiredHeight = position;
+-        m_pidController.setReference(position, ControlType.kSmartMotion, 0, GRAVITY_COMPENSATION.getValue(), ArbFFUnits.kPercentOut);
++        m_pidController.setReference(position, ControlType.kMAXMotionPositionControl, 0, GRAVITY_COMPENSATION.getValue(), ArbFFUnits.kPercentOut);
+         return false;
+     }
+ 
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
+index caf68af44..7bec1a34c 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
+@@ -8,6 +8,7 @@
+ package com.gos.codelabs.pid.subsystems;
+ 
+ import com.gos.codelabs.pid.Constants;
++import com.gos.codelabs.pid.Constants.FlywheelSimConstants;
+ import com.gos.lib.properties.pid.PidProperty;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.spark.SparkBase.ControlType;
+@@ -49,8 +50,8 @@ public class ShooterSubsystem extends SubsystemBase {
+         m_wheelMotor.configure(wheelConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+ 
+         if (RobotBase.isSimulation()) {
+-            m_simulator = new FlywheelSimWrapper(Constants.FlywheelSimConstants.createSim(),
+-                    new RevMotorControllerSimWrapper(m_wheelMotor),
++            m_simulator = new FlywheelSimWrapper(FlywheelSimConstants.createSim(),
++                    new RevMotorControllerSimWrapper(m_wheelMotor, FlywheelSimConstants.GEARBOX),
+                     RevEncoderSimWrapper.create(m_wheelMotor));
+         }
+     }
+diff --git a/evergreen_robots/SCRAWestCoastDrive/src/main/java/com/gos/scra/wcd/commands/ChassisCurvatureDriveCommand.java b/evergreen_robots/SCRAWestCoastDrive/src/main/java/com/gos/scra/wcd/commands/ChassisCurvatureDriveCommand.java
+index 48a4569f3..d22528f09 100644
+--- a/evergreen_robots/SCRAWestCoastDrive/src/main/java/com/gos/scra/wcd/commands/ChassisCurvatureDriveCommand.java
++++ b/evergreen_robots/SCRAWestCoastDrive/src/main/java/com/gos/scra/wcd/commands/ChassisCurvatureDriveCommand.java
+@@ -22,7 +22,7 @@ public class ChassisCurvatureDriveCommand extends Command {
+ 
+     @Override
+     public void execute() {
+-        m_chassis.setCurvatureDrive(-m_joystick.getLeftY(), -m_joystick.getRightX(), m_joystick.getRightBumper());
++        m_chassis.setCurvatureDrive(-m_joystick.getLeftY(), -m_joystick.getRightX(), m_joystick.getRightBumperButton());
+     }
+ 
+     @Override
+diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
+index 34fbbf5fc..5dff84512 100644
+--- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
++++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
+@@ -1,6 +1,9 @@
+ package com.gos.lib.properties.feedforward;
+ 
+ import edu.wpi.first.math.controller.ArmFeedforward;
++import edu.wpi.first.units.measure.Angle;
++import edu.wpi.first.units.measure.AngularVelocity;
++import edu.wpi.first.units.measure.Voltage;
+ 
+ public class ArmFeedForwardProperty extends BaseFeedForwardProperty {
+ 
+@@ -52,6 +55,20 @@ public class ArmFeedForwardProperty extends BaseFeedForwardProperty {
+         return m_feedForward.calculate(positionRadians, velocityRadPerSec, accelRadPerSecSquared);
+     }
+ 
++    /**
++     * Calculates the feedforward from the gains and setpoints assuming discrete control when the
++     * velocity does not change.
++     *
++     * @param currentAngle The current angle. This angle should be measured from the horizontal (i.e.
++     *     if the provided angle is 0, the arm should be parallel to the floor). If your encoder does
++     *     not follow this convention, an offset should be added.
++     * @param currentVelocity The current velocity.
++     * @return The computed feedforward in volts.
++     */
++    public Voltage calculate(Angle currentAngle, AngularVelocity currentVelocity) {
++        return m_feedForward.calculate(currentAngle, currentVelocity);
++    }
++
+     public double getKs() {
+         return m_feedForward.getKs();
+     }
+diff --git a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
+index 99ab6fe16..b9f9e379e 100644
+--- a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
++++ b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
+@@ -125,6 +125,7 @@ public class AprilTagCamera {
+         return m_maybeResult;
+     }
+ 
++    @SuppressWarnings("PMD.CyclomaticComplexity")
+     public Matrix<N3, N1> getEstimationStdDevs(Pose2d estimatedPose) {
+         Matrix<N3, N1> estStdDevs = m_singleTagStddev;
+         if (m_lastPipelineResult.isEmpty()) {
+diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
+index 31f689ee9..fa944c649 100644
+--- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
++++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
+@@ -168,8 +168,8 @@ public class RevSwerveModule {
+             );
+             m_simWrapper = new SwerveModuleSimWrapper(
+                 moduleSim,
+-                new RevMotorControllerSimWrapper(m_drivingSparkMax),
+-                new RevMotorControllerSimWrapper(m_turningSparkMax),
++                new RevMotorControllerSimWrapper(m_drivingSparkMax, drivingMotor),
++                new RevMotorControllerSimWrapper(m_turningSparkMax, turningMotor),
+                 RevEncoderSimWrapper.create(m_drivingSparkMax),
+                 RevEncoderSimWrapper.create(m_turningSparkMax),
+                 RevSwerveModuleConstants.WHEEL_DIAMETER_METERS * Math.PI,
+@@ -259,18 +259,15 @@ public class RevSwerveModule {
+      */
+     public void setDesiredState(SwerveModuleState desiredState) {
+         // Apply chassis angular offset to the desired state.
+-        SwerveModuleState correctedDesiredState = new SwerveModuleState();
+-        correctedDesiredState.speedMetersPerSecond = desiredState.speedMetersPerSecond;
+-        correctedDesiredState.angle = desiredState.angle.plus(Rotation2d.fromRadians(m_chassisAngularOffset));
++        m_desiredState = new SwerveModuleState();
++        m_desiredState.speedMetersPerSecond = desiredState.speedMetersPerSecond;
++        m_desiredState.angle = desiredState.angle.plus(Rotation2d.fromRadians(m_chassisAngularOffset));
+ 
+         // Optimize the reference state to avoid spinning further than 90 degrees.
+-        SwerveModuleState optimizedDesiredState = SwerveModuleState.optimize(correctedDesiredState,
+-            new Rotation2d(getTurningEncoderAngle()));
++        m_desiredState.optimize(new Rotation2d(getTurningEncoderAngle()));
+ 
+         // Command driving and turning SPARKS MAX towards their respective setpoints.
+-        m_drivingPIDController.setReference(optimizedDesiredState.speedMetersPerSecond, ControlType.kVelocity);
+-
+-        m_desiredState = optimizedDesiredState;
++        m_drivingPIDController.setReference(m_desiredState.speedMetersPerSecond, ControlType.kVelocity);
+         m_turningPIDController.setReference(m_desiredState.angle.getRadians(), ControlType.kPosition);
+ 
+     }
+diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/FollowTrajectory.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/FollowTrajectory.java
+index 7fad85a27..279856b56 100644
+--- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/FollowTrajectory.java
++++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/FollowTrajectory.java
+@@ -26,6 +26,8 @@ public class FollowTrajectory extends BaseRamseteCoordinateGuiCommand {
+ 
+     }
+ 
++
++    @SuppressWarnings("removal")
+     public FollowTrajectory(Trajectory trajectory, Chassis chassis) {
+         super(trajectory,
+             new RamseteController(AutoConstants.RAMSETE_B, AutoConstants.RAMSETE_ZETA),
+diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/TurnToAngleProfiled.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/TurnToAngleProfiled.java
+index 6e2f1cad4..de572ee85 100644
+--- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/TurnToAngleProfiled.java
++++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/TurnToAngleProfiled.java
+@@ -7,6 +7,7 @@ import edu.wpi.first.math.controller.ProfiledPIDController;
+ import edu.wpi.first.math.trajectory.TrapezoidProfile;
+ import edu.wpi.first.wpilibj2.command.ProfiledPIDCommand;
+ 
++@SuppressWarnings("removal")
+ public class TurnToAngleProfiled extends ProfiledPIDCommand {
+ 
+     private static final GosDoubleProperty AUTO_KP = new GosDoubleProperty(
+diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
+index 3777096bb..af3460bba 100644
+--- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
++++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
+@@ -143,7 +143,6 @@ public class Chassis extends SubsystemBase {
+         double kd = 0;
+         double kff = 0.005800;
+         boolean lockConstants = false;
+-        double minVel = 0; // inch/sec
+         double maxVel = 72; // inch/sec
+         double maxAcc = 144; // inch/sec/sec
+         double allowedErr = 0;
+@@ -170,11 +169,8 @@ public class Chassis extends SubsystemBase {
+ 
+         masterLeftConfig.closedLoop.outputRange(kMinOutput, kMaxOutput);
+         masterRightConfig.closedLoop.outputRange(kMinOutput, kMaxOutput);
+-        masterLeftConfig.closedLoop.smartMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
+-        masterRightConfig.closedLoop.smartMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
+-
+-        masterLeftConfig.closedLoop.smartMotion.minOutputVelocity(minVel, smartMotionSlot);
+-        masterRightConfig.closedLoop.smartMotion.minOutputVelocity(minVel, smartMotionSlot);
++        masterLeftConfig.closedLoop.maxMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
++        masterRightConfig.closedLoop.maxMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
+ 
+         m_leftProperties.updateIfChanged(true);
+         m_rightProperties.updateIfChanged(true);
+@@ -212,8 +208,8 @@ public class Chassis extends SubsystemBase {
+ 
+             m_simulator = new DifferentialDrivetrainSimWrapper(
+                     drivetrainSim,
+-                    new RevMotorControllerSimWrapper(m_masterLeft),
+-                    new RevMotorControllerSimWrapper(m_masterRight),
++                    new RevMotorControllerSimWrapper(m_masterLeft, kDriveGearbox),
++                    new RevMotorControllerSimWrapper(m_masterRight, kDriveGearbox),
+                     RevEncoderSimWrapper.create(m_masterLeft),
+                     RevEncoderSimWrapper.create(m_masterRight),
+                     new NavxWrapper().getYawGyro());
+@@ -334,8 +330,8 @@ public class Chassis extends SubsystemBase {
+     }
+ 
+     public void driveDistance(double leftPosition, double rightPosition) {
+-        m_leftPidController.setReference(leftPosition, ControlType.kSmartMotion);
+-        m_rightPidController.setReference(rightPosition, ControlType.kSmartMotion);
++        m_leftPidController.setReference(leftPosition, ControlType.kMAXMotionPositionControl);
++        m_rightPidController.setReference(rightPosition, ControlType.kMAXMotionPositionControl);
+         m_drive.feed();
+     }
+ 
+diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
+index 90f40e004..1e9f51ac9 100644
+--- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
++++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
+@@ -99,7 +99,7 @@ public class Shooter extends SubsystemBase {
+             FlywheelSim flywheelSim = new FlywheelSim(plant, gearbox);
+ 
+             m_simulator = new FlywheelSimWrapper(flywheelSim,
+-                    new RevMotorControllerSimWrapper(m_master),
++                    new RevMotorControllerSimWrapper(m_master, gearbox),
+                     RevEncoderSimWrapper.create(m_master));
+         }
+     }
+diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
+index 93147e94b..103183463 100644
+--- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
++++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
+@@ -25,6 +25,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
+ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+ import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+ import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
++import edu.wpi.first.math.system.plant.DCMotor;
+ import edu.wpi.first.wpilibj.RobotBase;
+ import edu.wpi.first.wpilibj.SPI;
+ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+@@ -115,8 +116,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
+                 null);
+             m_simulator = new DifferentialDrivetrainSimWrapper(
+                 drivetrainSim,
+-                new RevMotorControllerSimWrapper(m_leftLeader),
+-                new RevMotorControllerSimWrapper(m_rightLeader),
++                new RevMotorControllerSimWrapper(m_leftLeader, DCMotor.getNEO(2)),
++                new RevMotorControllerSimWrapper(m_rightLeader, DCMotor.getNEO(2)),
+                 RevEncoderSimWrapper.create(m_leftLeader),
+                 RevEncoderSimWrapper.create(m_rightLeader),
+                 new NavxWrapper().getYawGyro());
+@@ -147,8 +148,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
+     }
+ 
+     public void applyWheelSpeed(DifferentialDriveWheelSpeeds speeds) {
+-        m_leftController.setReference(speeds.leftMetersPerSecond, ControlType.kSmartVelocity);
+-        m_rightController.setReference(speeds.rightMetersPerSecond, ControlType.kSmartVelocity);
++        m_leftController.setReference(speeds.leftMetersPerSecond, ControlType.kVelocity);
++        m_rightController.setReference(speeds.rightMetersPerSecond, ControlType.kVelocity);
+     }
+ 
+     public Pose2d getPose() {
+diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
+index 7e347ef85..3b0da1e17 100644
+--- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
++++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
+@@ -83,11 +83,11 @@ public class ShooterSubsytem extends SubsystemBase {
+                 LinearSystemId.createFlywheelSystem(gearbox, 0.01, 1.0);
+             FlywheelSim shooterFlywheelSim = new FlywheelSim(plant, gearbox);
+             m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim,
+-                new RevMotorControllerSimWrapper(m_shooterMotor),
++                new RevMotorControllerSimWrapper(m_shooterMotor, gearbox),
+                 RevEncoderSimWrapper.create(m_shooterMotor));
+ 
+             m_hoodSimulator = new InstantaneousMotorSim(
+-                new RevMotorControllerSimWrapper(m_hoodMotor),
++                new RevMotorControllerSimWrapper(m_hoodMotor, gearbox),
+                 RevEncoderSimWrapper.create(m_hoodMotor),
+                 1
+             );
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/commands/autonomous/FollowTrajectory.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/commands/autonomous/FollowTrajectory.java
+index ecce9d9d0..48d809241 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/commands/autonomous/FollowTrajectory.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/commands/autonomous/FollowTrajectory.java
+@@ -18,6 +18,7 @@ public class FollowTrajectory extends BaseRamseteCoordinateGuiCommand {
+     }
+ 
+ 
++    @SuppressWarnings("removal")
+     public FollowTrajectory(Trajectory trajectory, ChassisSubsystem chassis) {
+         super(trajectory,
+             new RamseteController(AutoConstants.RAMSETE_B, AutoConstants.RAMSETE_ZETA),
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
+index 6d437a18d..f0065febb 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
+@@ -26,6 +26,7 @@ import edu.wpi.first.math.geometry.Pose2d;
+ import edu.wpi.first.math.geometry.Rotation2d;
+ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+ import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
++import edu.wpi.first.math.system.plant.DCMotor;
+ import edu.wpi.first.math.trajectory.TrapezoidProfile;
+ import edu.wpi.first.math.util.Units;
+ import edu.wpi.first.networktables.NetworkTable;
+@@ -45,6 +46,7 @@ import org.snobotv2.module_wrappers.rev.RevMotorControllerSimWrapper;
+ import org.snobotv2.sim_wrappers.DifferentialDrivetrainSimWrapper;
+ 
+ import static edu.wpi.first.units.Units.Degree;
++import static edu.wpi.first.units.Units.DegreesPerSecond;
+ 
+ 
+ @SuppressWarnings("PMD.TooManyFields")
+@@ -201,8 +203,8 @@ public class ChassisSubsystem extends SubsystemBase {
+                 null);
+             m_simulator = new DifferentialDrivetrainSimWrapper(
+                 drivetrainSim,
+-                new RevMotorControllerSimWrapper(m_leaderLeft),
+-                new RevMotorControllerSimWrapper(m_leaderRight),
++                new RevMotorControllerSimWrapper(m_leaderLeft, DCMotor.getCIM(2)),
++                new RevMotorControllerSimWrapper(m_leaderRight, DCMotor.getCIM(2)),
+                 RevEncoderSimWrapper.create(m_leaderLeft),
+                 RevEncoderSimWrapper.create(m_leaderRight),
+                 new Pigeon2Wrapper(m_gyro));
+@@ -251,7 +253,7 @@ public class ChassisSubsystem extends SubsystemBase {
+         m_field.setRobotPose(getPose());
+         m_coordinateGuiPublisher.publish(getPose());
+         m_gyroAngleEntry.setNumber(getYawAngle());
+-        m_gyroAngleRateEntry.setNumber(m_gyro.getRate());
++        m_gyroAngleRateEntry.setNumber(m_gyro.getAngularVelocityZWorld().getValue().in(DegreesPerSecond));
+ 
+         m_leftProperties.updateIfChanged();
+         m_rightProperties.updateIfChanged();
+@@ -290,8 +292,8 @@ public class ChassisSubsystem extends SubsystemBase {
+         double rightError = rightDistance - getRightEncoderDistance();
+         double staticFrictionLeft = KS_VOLTS_FORWARD * Math.signum(leftError);
+         double staticFrictionRight = KS_VOLTS_FORWARD * Math.signum(rightError);
+-        m_leftPidController.setReference(leftDistance, ControlType.kSmartMotion, 0, staticFrictionLeft);
+-        m_rightPidController.setReference(rightDistance, ControlType.kSmartMotion, 0, staticFrictionRight);
++        m_leftPidController.setReference(leftDistance, ControlType.kMAXMotionPositionControl, 0, staticFrictionLeft);
++        m_rightPidController.setReference(rightDistance, ControlType.kMAXMotionPositionControl, 0, staticFrictionRight);
+         m_drive.feed();
+     }
+ 
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
+index 050c6f71c..f71688b81 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
+@@ -154,9 +154,9 @@ public class CollectorSubsystem extends SubsystemBase {
+             DCMotor gearbox = DCMotor.getNeo550(1);
+             SingleJointedArmSim armSim = new SingleJointedArmSim(gearbox, GEARING, J_KG_METERS_SQUARED,
+                 ARM_LENGTH_METERS, MIN_ANGLE_RADS, MAX_ANGLE_RADS, SIMULATE_GRAVITY, 0);
+-            m_leftSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotLeft),
++            m_leftSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotLeft, gearbox),
+                 RevEncoderSimWrapper.create(m_pivotLeft), true);
+-            m_rightSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotRight),
++            m_rightSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotRight, gearbox),
+                 RevEncoderSimWrapper.create(m_pivotRight), true);
+         }
+     }
+@@ -266,8 +266,8 @@ public class CollectorSubsystem extends SubsystemBase {
+             double staticFrictionRight = PIVOT_KS * Math.signum(errorRight);
+             double arbFeedforwardLeft = gravityOffsetLeft + staticFrictionLeft;
+             double arbFeedforwardRight = gravityOffsetRight + staticFrictionRight;
+-            m_pidControllerLeft.setReference(pivotAngleDegreesGoal, ControlType.kSmartMotion, 0, arbFeedforwardLeft);
+-            m_pidControllerRight.setReference(pivotAngleDegreesGoal, ControlType.kSmartMotion, 0, arbFeedforwardRight);
++            m_pidControllerLeft.setReference(pivotAngleDegreesGoal, ControlType.kMAXMotionPositionControl, 0, arbFeedforwardLeft);
++            m_pidControllerRight.setReference(pivotAngleDegreesGoal, ControlType.kMAXMotionPositionControl, 0, arbFeedforwardRight);
+ 
+             m_leftGravityOffsetVoltage.setNumber(gravityOffsetLeft);
+             m_rightGravityOffsetVoltage.setNumber(gravityOffsetRight);
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/HangerSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/HangerSubsystem.java
+index 4a46751f3..9b4f181a9 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/HangerSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/HangerSubsystem.java
+@@ -66,11 +66,11 @@ public class HangerSubsystem extends SubsystemBase {
+             DCMotor gearbox = DCMotor.getNeo550(2);
+             ElevatorSim leftElevatorSim = new ElevatorSim(gearbox, GEAR, Units.lbsToKilograms(10), Units.inchesToMeters(2), Units.feetToMeters(0), Units.feetToMeters(4), true, 0);
+             m_leftSimulator = new ElevatorSimWrapper(leftElevatorSim,
+-                new RevMotorControllerSimWrapper(m_leftHanger),
++                new RevMotorControllerSimWrapper(m_leftHanger, gearbox),
+                 RevEncoderSimWrapper.create(m_leftHanger));
+             ElevatorSim rightElevatorSim = new ElevatorSim(DCMotor.getNeo550(2), GEAR, Units.lbsToKilograms(10), Units.inchesToMeters(2), Units.feetToMeters(0), Units.feetToMeters(4), true, 0);
+             m_rightSimulator = new ElevatorSimWrapper(rightElevatorSim,
+-                new RevMotorControllerSimWrapper(m_rightHanger),
++                new RevMotorControllerSimWrapper(m_rightHanger, gearbox),
+                 RevEncoderSimWrapper.create(m_rightHanger));
+         }
+     }
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
+index e3a962f28..42d8eab58 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
+@@ -115,7 +115,7 @@ public class ShooterSubsystem extends SubsystemBase {
+                 LinearSystemId.createFlywheelSystem(shooterGearbox, 0.01, 1.0);
+             FlywheelSim shooterFlywheelSim = new FlywheelSim(shooterPlant, shooterGearbox);
+             m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim,
+-                new RevMotorControllerSimWrapper(m_leader),
++                new RevMotorControllerSimWrapper(m_leader, shooterGearbox),
+                 RevEncoderSimWrapper.create(m_leader));
+ 
+             DCMotor backspinGearbox = DCMotor.getNeo550(2);
+@@ -123,7 +123,7 @@ public class ShooterSubsystem extends SubsystemBase {
+                 LinearSystemId.createFlywheelSystem(shooterGearbox, 0.01, 1.0);
+             FlywheelSim backspinFlywheelSim = new FlywheelSim(backspinPlant, backspinGearbox);
+             m_backspinSimulator = new FlywheelSimWrapper(backspinFlywheelSim,
+-                new RevMotorControllerSimWrapper(m_roller),
++                new RevMotorControllerSimWrapper(m_roller, shooterGearbox),
+                 RevEncoderSimWrapper.create(m_roller));
+         }
+ 
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
+index 9bb301b2f..4e84efcdc 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
+@@ -35,6 +35,9 @@ import edu.wpi.first.math.util.Units;
+ import edu.wpi.first.networktables.NetworkTable;
+ import edu.wpi.first.networktables.NetworkTableEntry;
+ import edu.wpi.first.networktables.NetworkTableInstance;
++import edu.wpi.first.units.measure.Angle;
++import edu.wpi.first.units.measure.AngularVelocity;
++import edu.wpi.first.units.measure.Voltage;
+ import edu.wpi.first.wpilibj.DigitalInput;
+ import edu.wpi.first.wpilibj.RobotBase;
+ import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
+@@ -47,6 +50,10 @@ import org.snobotv2.sim_wrappers.SingleJointedArmSimWrapper;
+ import java.util.function.DoubleSupplier;
+ import java.util.function.Supplier;
+ 
++import static edu.wpi.first.units.Units.Degrees;
++import static edu.wpi.first.units.Units.DegreesPerSecond;
++import static edu.wpi.first.units.Units.Volts;
++
+ 
+ @SuppressWarnings({"PMD.GodClass", "PMD.ExcessivePublicCount"})
+ public class ArmPivotSubsystem extends SubsystemBase {
+@@ -192,9 +199,10 @@ public class ArmPivotSubsystem extends SubsystemBase {
+         m_pivotErrorAlert = new SparkMaxAlerts(m_pivotMotor, "arm pivot motor ");
+ 
+         if (RobotBase.isSimulation()) {
+-            SingleJointedArmSim armSim = new SingleJointedArmSim(DCMotor.getNeo550(1), GEARING, J_KG_METERS_SQUARED,
++            DCMotor gearbox = DCMotor.getNeo550(1);
++            SingleJointedArmSim armSim = new SingleJointedArmSim(gearbox, GEARING, J_KG_METERS_SQUARED,
+                 ARM_LENGTH_METERS, MIN_ANGLE_RADS, MAX_ANGLE_RADS, SIMULATE_GRAVITY, 0);
+-            m_pivotSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotMotor),
++            m_pivotSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotMotor, gearbox),
+                 RevEncoderSimWrapper.create(m_pivotMotor), true);
+         }
+ 
+@@ -341,13 +349,15 @@ public class ArmPivotSubsystem extends SubsystemBase {
+         m_profileVelocityGoalEntry.setNumber(profileSetpointDegrees.velocity);
+         m_profilePositionGoalEntry.setNumber(profileSetpointDegrees.position);
+ 
+-        double feedForwardVolts = m_wpiFeedForward.calculate(
+-                Units.degreesToRadians(profileSetpointDegrees.position),
+-                Units.degreesToRadians(profileSetpointDegrees.velocity));
+-        m_pidArbitraryFeedForwardEntry.setNumber(feedForwardVolts);
++        Angle currentAngle = Degrees.of(getFeedbackAngleDeg());
++        AngularVelocity currentVelocity = DegreesPerSecond.of(getFeedbackVelocityDegPerSec());
++        Voltage feedForwardVolts = m_wpiFeedForward.calculate(
++            currentAngle,
++            currentVelocity);
++        m_pidArbitraryFeedForwardEntry.setNumber(feedForwardVolts.in(Volts));
+ 
+         if (isMotionProfileFinished()) {
+-            m_sparkPidController.setReference(pivotAngleGoal, ControlType.kPosition, 0, feedForwardVolts);
++            m_sparkPidController.setReference(pivotAngleGoal, ControlType.kPosition, 0, feedForwardVolts.in(Volts));
+         } else {
+             m_pivotMotor.setVoltage(feedForwardVolts);
+         }
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
+index 640a7fa0f..a2245576d 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
+@@ -33,6 +33,7 @@ import java.util.ArrayList;
+ import java.util.List;
+ 
+ import static edu.wpi.first.units.Units.Degrees;
++import static edu.wpi.first.units.Units.DegreesPerSecond;
+ 
+ public abstract class BaseChassis extends SubsystemBase implements ChassisSubsystemInterface {
+     protected static final double PITCH_LOWER_LIMIT = -3.0;
+@@ -108,9 +109,9 @@ public abstract class BaseChassis extends SubsystemBase implements ChassisSubsys
+         m_gyro = new Pigeon2(Constants.PIGEON_PORT);
+         m_gyro.getConfigurator().apply(new Pigeon2Configuration());
+         if (Constants.IS_ROBOT_BLOSSOM) {
+-            m_networkTableEntries.addDouble("Gyro Rate", () -> -m_gyro.getRate());
++            m_networkTableEntries.addDouble("Gyro Rate", () -> -m_gyro.getAngularVelocityZWorld().getValue().in(DegreesPerSecond));
+         } else {
+-            m_networkTableEntries.addDouble("Gyro Rate", () -> m_gyro.getRate());
++            m_networkTableEntries.addDouble("Gyro Rate", () -> m_gyro.getAngularVelocityZWorld().getValue().in(DegreesPerSecond));
+         }
+ 
+         NetworkTable loggingTable = NetworkTableInstance.getDefault().getTable("Chassis Subsystem");
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
+index 2ac41221d..c9a03a52c 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
+@@ -34,6 +34,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
+ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+ import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+ import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
++import edu.wpi.first.math.system.plant.DCMotor;
+ import edu.wpi.first.math.util.Units;
+ import edu.wpi.first.units.measure.AngularVelocity;
+ import edu.wpi.first.wpilibj.DriverStation;
+@@ -217,8 +218,8 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
+                 null);
+             m_simulator = new DifferentialDrivetrainSimWrapper(
+                 drivetrainSim,
+-                new RevMotorControllerSimWrapper(m_leaderLeft),
+-                new RevMotorControllerSimWrapper(m_leaderRight),
++                new RevMotorControllerSimWrapper(m_leaderLeft, DCMotor.getNEO(2)),
++                new RevMotorControllerSimWrapper(m_leaderRight, DCMotor.getNEO(2)),
+                 RevEncoderSimWrapper.create(m_leaderLeft),
+                 RevEncoderSimWrapper.create(m_leaderRight),
+                 new Pigeon2Wrapper(m_gyro));
+@@ -302,7 +303,7 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
+     public void turnToAngle(double angleGoal) {
+         SmartDashboard.putNumber("goal angle chassis pid", angleGoal);
+         double steerVoltage = m_turnAnglePID.calculate(m_odometry.getPoseMeters().getRotation().getDegrees(), angleGoal);
+-        AngularVelocity currentVelocity = DegreesPerSecond.of(m_gyro.getRate());
++        AngularVelocity currentVelocity = m_gyro.getAngularVelocityZWorld().getValue();
+         AngularVelocity goalVelocity = DegreesPerSecond.of(m_turnAnglePID.getSetpoint().velocity);
+         steerVoltage += m_turnAnglePIDFFProperty.calculate(currentVelocity, goalVelocity).in(Volts);
+ 
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/ObjectDetection.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/ObjectDetection.java
+index c5cea6980..b196bd9c4 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/ObjectDetection.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/ObjectDetection.java
+@@ -83,8 +83,13 @@ public class ObjectDetection {
+ 
+     public List<Pose2d> objectLocations(Pose2d chassisLocation) {
+         List<Pose2d> objectLocationsList = new ArrayList<>();
+-        PhotonPipelineResult lastestResult = m_photonCamera.getLatestResult();
+-        for (PhotonTrackedTarget result : lastestResult.getTargets()) {
++        List<PhotonPipelineResult> results = m_photonCamera.getAllUnreadResults();
++        if (results.isEmpty()) {
++            return objectLocationsList;
++        }
++
++        PhotonPipelineResult latestResult = results.get(results.size() - 1);
++        for (PhotonTrackedTarget result : latestResult.getTargets()) {
+             Rotation2d yaw = Rotation2d.fromDegrees(-result.getYaw());
+             double distance = calculateDistanceToTarget(
+                 ROBOT_TO_CAMERA.getZ(),
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
+index 89902dc47..c93abc47c 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
+@@ -30,6 +30,7 @@ import edu.wpi.first.math.geometry.Translation2d;
+ import edu.wpi.first.math.system.plant.DCMotor;
+ import edu.wpi.first.math.trajectory.TrapezoidProfile;
+ import edu.wpi.first.math.util.Units;
++import edu.wpi.first.units.measure.Voltage;
+ import edu.wpi.first.wpilibj.DriverStation;
+ import edu.wpi.first.wpilibj.RobotBase;
+ import edu.wpi.first.wpilibj.RobotController;
+@@ -44,6 +45,10 @@ import org.snobotv2.sim_wrappers.SingleJointedArmSimWrapper;
+ import java.util.function.DoubleSupplier;
+ import java.util.function.Supplier;
+ 
++import static edu.wpi.first.units.Units.Degrees;
++import static edu.wpi.first.units.Units.DegreesPerSecond;
++import static edu.wpi.first.units.Units.Volts;
++
+ @SuppressWarnings("PMD.GodClass")
+ public class ArmPivotSubsystem extends SubsystemBase {
+     private static final GosDoubleProperty ARM_INTAKE_ANGLE = new GosDoubleProperty(Constants.DEFAULT_CONSTANT_PROPERTIES, "intakeAngle", 356);
+@@ -169,7 +174,7 @@ public class ArmPivotSubsystem extends SubsystemBase {
+             DCMotor gearbox = DCMotor.getNeo550(1);
+             SingleJointedArmSim armSim = new SingleJointedArmSim(gearbox, 252, 1,
+                 0.381, Units.degreesToRadians(-2), Units.degreesToRadians(90), true, 0);
+-            m_pivotSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotMotor),
++            m_pivotSimulator = new SingleJointedArmSimWrapper(armSim, new RevMotorControllerSimWrapper(m_pivotMotor, gearbox),
+                 RevEncoderSimWrapper.create(m_pivotMotor), true);
+         }
+ 
+@@ -205,13 +210,13 @@ public class ArmPivotSubsystem extends SubsystemBase {
+         if (currentAngle < ARM_MAX_ANGLE || MathUtil.inputModulus(goalAngle, -180, 180) < MathUtil.inputModulus(currentAngle, -180, 180)) {
+             m_profilePID.calculate(currentAngle, goalAngle);
+             TrapezoidProfile.State setpoint = m_profilePID.getSetpoint();
+-            double feedForwardVolts = m_wpiFeedForward.calculate(
+-                Units.degreesToRadians(currentAngle),
+-                Units.degreesToRadians(setpoint.velocity));
+ 
++            Voltage feedForwardVolts = m_wpiFeedForward.calculate(
++                Degrees.of(currentAngle),
++                DegreesPerSecond.of(setpoint.velocity));
+ 
+-            m_sparkPidController.setReference(setpoint.position, ControlType.kPosition, 0, feedForwardVolts);
+-            SmartDashboard.putNumber("feedForwardVolts", feedForwardVolts);
++            m_sparkPidController.setReference(setpoint.position, ControlType.kPosition, 0, feedForwardVolts.in(Volts));
++            SmartDashboard.putNumber("feedForwardVolts", feedForwardVolts.in(Volts));
+         }
+         else {
+             stopArmMotor();
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ChassisSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ChassisSubsystem.java
+index 0ab67920d..f8964d0bf 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ChassisSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ChassisSubsystem.java
+@@ -57,6 +57,8 @@ import org.snobotv2.module_wrappers.phoenix6.Pigeon2Wrapper;
+ import java.io.IOException;
+ import java.util.List;
+ 
++import static edu.wpi.first.units.Units.Degrees;
++
+ @SuppressWarnings("PMD.GodClass")
+ public class ChassisSubsystem extends SubsystemBase {
+     private static final double WHEEL_BASE = 0.381;
+@@ -176,7 +178,7 @@ public class ChassisSubsystem extends SubsystemBase {
+         m_shootingPolygon = new ValidShootingPolygon(m_field);
+ 
+         m_logging = new LoggingUtil("Chassis");
+-        m_logging.addDouble("GyroAngle", m_gyro::getAngle);
++        m_logging.addDouble("GyroAngle", () -> m_gyro.getYaw().getValue().in(Degrees));
+         m_logging.addDouble("PoseAngle", () -> getPose().getRotation().getDegrees());
+         m_logging.addDouble("Angle Setpoint", m_turnAnglePIDVelocity::getSetpoint);
+         m_logging.addBoolean("At Angle Setpoint", this::isAngleAtGoal);
+-- 
+2.38.1.windows.1
+

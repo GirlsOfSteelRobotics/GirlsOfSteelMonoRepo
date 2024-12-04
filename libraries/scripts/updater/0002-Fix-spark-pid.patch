@@ -1,0 +1,775 @@
+From 905411c5b4434a949d984cd5f3c2d4d2e7d4ce01 Mon Sep 17 00:00:00 2001
+From: PJ Reiniger <pj.reiniger@gmail.com>
+Date: Wed, 13 Nov 2024 22:22:28 -0500
+Subject: [PATCH 2/3] Fix spark pid
+
+---
+ .../pid/subsystems/ChassisSubsystem.java      | 43 ++++++++---------
+ .../pid/subsystems/ElevatorSubsystem.java     |  9 +++-
+ .../pid/subsystems/ShooterSubsystem.java      |  9 +++-
+ .../gos/lib/photonvision/AprilTagCamera.java  | 12 +++--
+ .../photonvision/AprilTagCameraManager.java   |  6 ++-
+ .../properties/pid/RevPidPropertyBuilder.java | 46 ++++++++++++++-----
+ .../gos/lib/rev/swerve/RevSwerveModule.java   |  5 +-
+ .../infinite_recharge/subsystems/Chassis.java |  4 +-
+ .../subsystems/DrivetrainSubsystem.java       |  9 ++--
+ .../subsystems/ShooterSubsytem.java           |  3 +-
+ .../subsystems/ChassisSubsystem.java          |  9 ++--
+ .../subsystems/CollectorSubsystem.java        |  9 ++--
+ .../subsystems/ShooterSubsystem.java          |  5 +-
+ .../subsystems/ArmPivotSubsystem.java         |  9 ++--
+ .../subsystems/TankDriveChassisSubsystem.java | 11 +++--
+ .../subsystems/ArmPivotSubsystem.java         |  3 +-
+ .../subsystems/HangerSubsystem.java           |  9 ++--
+ .../subsystems/ShooterSubsystem.java          |  3 +-
+ 18 files changed, 130 insertions(+), 74 deletions(-)
+
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
+index 934890720..12fb7ef3e 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
+@@ -9,6 +9,7 @@ import com.revrobotics.RelativeEncoder;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.SparkClosedLoopController;
+ import com.revrobotics.spark.SparkClosedLoopController.ArbFFUnits;
+@@ -30,9 +31,9 @@ import org.snobotv2.sim_wrappers.DifferentialDrivetrainSimWrapper;
+ @SuppressWarnings("PMD.TooManyFields")
+ public class ChassisSubsystem extends SubsystemBase {
+ 
+-    private static final int PID_SLOT_VELOCITY = 0;
+-    private static final int PID_SLOT_SMART_MOTION = 1;
+-    private static final int PID_SLOT_POSITION = 2;
++    private static final ClosedLoopSlot PID_SLOT_VELOCITY = ClosedLoopSlot.kSlot0;
++    private static final ClosedLoopSlot PID_SLOT_SMART_MOTION = ClosedLoopSlot.kSlot1;
++    private static final ClosedLoopSlot PID_SLOT_POSITION = ClosedLoopSlot.kSlot2;
+ 
+     public static final double DEFAULT_ALLOWABLE_POSITION_ERROR = Units.inchesToMeters(.5);
+ 
+@@ -78,12 +79,12 @@ public class ChassisSubsystem extends SubsystemBase {
+         m_rightEncoder = m_rightDriveA.getEncoder();
+         m_leftPid = m_leftDriveA.getClosedLoopController();
+         m_rightPid = m_rightDriveA.getClosedLoopController();
+-        m_leftVelocityPidProperty = setupVelocityPidConstants(m_leftPid);
+-        m_rightVelocityPidProperty = setupVelocityPidConstants(m_rightPid);
+-        m_leftSmartMotionPidProperty = setupSmartMotionPidConstants(m_leftPid);
+-        m_rightSmartMotionPidProperty = setupSmartMotionPidConstants(m_rightPid);
+-        m_leftPositionPidProperty = setupPositionPidConstants(m_leftPid);
+-        m_rightPositionPidProperty = setupPositionPidConstants(m_rightPid);
++        m_leftVelocityPidProperty = setupVelocityPidConstants(m_leftDriveA, leftDriveAConfig);
++        m_rightVelocityPidProperty = setupVelocityPidConstants(m_rightDriveA, rightDriveAConfig);
++        m_leftSmartMotionPidProperty = setupSmartMotionPidConstants(m_leftDriveA, leftDriveAConfig);
++        m_rightSmartMotionPidProperty = setupSmartMotionPidConstants(m_rightDriveA, rightDriveAConfig);
++        m_leftPositionPidProperty = setupPositionPidConstants(m_leftDriveA, leftDriveAConfig);
++        m_rightPositionPidProperty = setupPositionPidConstants(m_rightDriveA, rightDriveAConfig);
+ 
+         m_gyro = new ADXRS450_Gyro();
+ 
+@@ -110,22 +111,22 @@ public class ChassisSubsystem extends SubsystemBase {
+         rightDriveB.configure(rightDriveBConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+     }
+ 
+-    private PidProperty setupVelocityPidConstants(SparkClosedLoopController pidController) {
+-        return new RevPidPropertyBuilder("Chassis.vel", false, pidController, PID_SLOT_VELOCITY)
++    private PidProperty setupVelocityPidConstants(SparkMax motor, SparkMaxConfig config) {
++        return new RevPidPropertyBuilder("Chassis.vel", false, motor, config, PID_SLOT_VELOCITY)
+                 .addP(0)
+                 .addFF(0)
+                 .build();
+     }
+ 
+-    private PidProperty setupPositionPidConstants(SparkClosedLoopController pidController) {
+-        return new RevPidPropertyBuilder("Chassis.pos", false, pidController, PID_SLOT_POSITION)
++    private PidProperty setupPositionPidConstants(SparkMax motor, SparkMaxConfig config) {
++        return new RevPidPropertyBuilder("Chassis.pos", false, motor, config, PID_SLOT_POSITION)
+                 .addP(0)
+                 .addD(0)
+                 .build();
+     }
+ 
+-    private PidProperty setupSmartMotionPidConstants(SparkClosedLoopController pidController) {
+-        return new RevPidPropertyBuilder("Chassis.sm", false, pidController, PID_SLOT_SMART_MOTION)
++    private PidProperty setupSmartMotionPidConstants(SparkMax motor, SparkMaxConfig config) {
++        return new RevPidPropertyBuilder("Chassis.sm", false, motor, config, PID_SLOT_SMART_MOTION)
+                 .addP(0)
+                 .addFF(0)
+                 .addMaxAcceleration(0)
+@@ -208,8 +209,8 @@ public class ChassisSubsystem extends SubsystemBase {
+     }
+ 
+     public void driveDistancePositionControl(double leftDistance, double rightDistance) {
+-        m_leftPid.setReference(leftDistance, ControlType.kPosition, PID_SLOT_POSITION);
+-        m_rightPid.setReference(rightDistance, ControlType.kPosition, PID_SLOT_POSITION);
++        m_leftPid.setReference(leftDistance, ControlType.kPosition, PID_SLOT_POSITION.value);
++        m_rightPid.setReference(rightDistance, ControlType.kPosition, PID_SLOT_POSITION.value);
+         m_differentialDrive.feed();
+ 
+         SmartDashboard.putNumber("Left Position Goal", leftDistance);
+@@ -217,8 +218,8 @@ public class ChassisSubsystem extends SubsystemBase {
+     }
+ 
+     public void driveDistanceSmartMotionControl(double leftDistance, double rightDistance) {
+-        m_leftPid.setReference(leftDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION);
+-        m_rightPid.setReference(rightDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION);
++        m_leftPid.setReference(leftDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION.value);
++        m_rightPid.setReference(rightDistance, ControlType.kSmartMotion, PID_SLOT_SMART_MOTION.value);
+         m_differentialDrive.feed();
+ 
+         SmartDashboard.putNumber("Left SM Goal", leftDistance);
+@@ -241,8 +242,8 @@ public class ChassisSubsystem extends SubsystemBase {
+ 
+         ArbFFUnits arbUnit = ArbFFUnits.kVoltage;
+ 
+-        m_leftPid.setReference(leftVelocity, ControlType.kVelocity, PID_SLOT_VELOCITY, arbLeft, arbUnit);
+-        m_rightPid.setReference(rightVelocity, ControlType.kVelocity, PID_SLOT_VELOCITY, arbRight, arbUnit);
++        m_leftPid.setReference(leftVelocity, ControlType.kVelocity, PID_SLOT_VELOCITY.value, arbLeft, arbUnit);
++        m_rightPid.setReference(rightVelocity, ControlType.kVelocity, PID_SLOT_VELOCITY.value, arbRight, arbUnit);
+         m_differentialDrive.feed();
+ 
+         SmartDashboard.putNumber("Left Velocity Goal", leftVelocity);
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
+index 04ea5f15e..2ff2a450e 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
+@@ -5,11 +5,15 @@ import com.gos.lib.properties.GosDoubleProperty;
+ import com.gos.lib.properties.pid.PidProperty;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.SparkBase.PersistMode;
++import com.revrobotics.spark.SparkBase.ResetMode;
+ import com.revrobotics.spark.SparkClosedLoopController.ArbFFUnits;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkClosedLoopController;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
++import com.revrobotics.spark.config.SparkMaxConfig;
+ import edu.wpi.first.math.util.Units;
+ import edu.wpi.first.wpilibj.DigitalInput;
+ import edu.wpi.first.wpilibj.RobotBase;
+@@ -49,19 +53,22 @@ public class ElevatorSubsystem extends SubsystemBase {
+ 
+     public ElevatorSubsystem() {
+         m_liftMotor = new SparkMax(Constants.CAN_LIFT_MOTOR, MotorType.kBrushless);
++        SparkMaxConfig liftConfig = new SparkMaxConfig();
+         m_liftEncoder = m_liftMotor.getEncoder();
+         m_pidController = m_liftMotor.getClosedLoopController();
+ 
+         m_lowerLimitSwitch = new DigitalInput(Constants.DIO_LIFT_LOWER_LIMIT);
+         m_upperLimitSwitch = new DigitalInput(Constants.DIO_LIFT_UPPER_LIMIT);
+ 
+-        m_pidProperty = new RevPidPropertyBuilder("Elevator", false, m_pidController, 0)
++        m_pidProperty = new RevPidPropertyBuilder("Elevator", false, m_liftMotor, liftConfig, ClosedLoopSlot.kSlot0)
+                 .addP(0)
+                 .addFF(0)
+                 .addMaxAcceleration(0.1)
+                 .addMaxVelocity(0.1)
+                 .build();
+ 
++        m_liftMotor.configure(liftConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
++
+         if (RobotBase.isSimulation()) {
+             m_elevatorSim = new ElevatorSimWrapper(Constants.ElevatorSimConstants.createSim(),
+                     new RevMotorControllerSimWrapper(m_liftMotor),
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
+index 7ef4cfb7b..caf68af44 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
+@@ -11,10 +11,14 @@ import com.gos.codelabs.pid.Constants;
+ import com.gos.lib.properties.pid.PidProperty;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.SparkBase.PersistMode;
++import com.revrobotics.spark.SparkBase.ResetMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkClosedLoopController;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
++import com.revrobotics.spark.config.SparkMaxConfig;
+ import edu.wpi.first.wpilibj.RobotBase;
+ import edu.wpi.first.wpilibj2.command.SubsystemBase;
+ import org.snobotv2.module_wrappers.rev.RevEncoderSimWrapper;
+@@ -33,14 +37,17 @@ public class ShooterSubsystem extends SubsystemBase {
+ 
+     public ShooterSubsystem() {
+         m_wheelMotor = new SparkMax(Constants.CAN_SPINNING_MOTOR, MotorType.kBrushless);
++        SparkMaxConfig wheelConfig = new SparkMaxConfig();
+         m_encoder = m_wheelMotor.getEncoder();
+         m_pidController = m_wheelMotor.getClosedLoopController();
+ 
+-        m_pidProperty = new RevPidPropertyBuilder("Shooter", false, m_pidController, 0)
++        m_pidProperty = new RevPidPropertyBuilder("Shooter", false, m_wheelMotor, wheelConfig, ClosedLoopSlot.kSlot0)
+                 .addP(0)
+                 .addFF(0)
+                 .build();
+ 
++        m_wheelMotor.configure(wheelConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
++
+         if (RobotBase.isSimulation()) {
+             m_simulator = new FlywheelSimWrapper(Constants.FlywheelSimConstants.createSim(),
+                     new RevMotorControllerSimWrapper(m_wheelMotor),
+diff --git a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
+index 7acc43198..99ab6fe16 100644
+--- a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
++++ b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
+@@ -43,7 +43,7 @@ public class AprilTagCamera {
+ 
+     // Cached values
+     private Optional<EstimatedRobotPose> m_maybeResult;
+-    private PhotonPipelineResult m_lastPipelineResult;
++    private Optional<PhotonPipelineResult> m_lastPipelineResult;
+     private int m_numTargetsSeen;
+     private double m_avgDistanceToTag;
+     private double m_avgAmbiguity;
+@@ -91,6 +91,7 @@ public class AprilTagCamera {
+         m_photonPoseEstimator.setRobotToCameraTransform(robotToCamera);
+         m_photonPoseEstimator.setReferencePose(prevEstimatedRobotPose);
+         m_maybeResult = Optional.empty();
++        m_lastPipelineResult = Optional.empty();
+ 
+         for (PhotonPipelineResult result : m_photonCamera.getAllUnreadResults()) {
+             update(robotToCamera, result);
+@@ -115,7 +116,7 @@ public class AprilTagCamera {
+             m_field.setCameraResult(m_maybeResult.get().estimatedPose, aprilTags);
+         }
+ 
+-        m_lastPipelineResult = result;
++        m_lastPipelineResult = Optional.of(result);
+ 
+         m_logger.updateLogs();
+     }
+@@ -126,7 +127,10 @@ public class AprilTagCamera {
+ 
+     public Matrix<N3, N1> getEstimationStdDevs(Pose2d estimatedPose) {
+         Matrix<N3, N1> estStdDevs = m_singleTagStddev;
+-        List<PhotonTrackedTarget> targets = m_lastPipelineResult.getTargets();
++        if (m_lastPipelineResult.isEmpty()) {
++            return estStdDevs;
++        }
++        List<PhotonTrackedTarget> targets = m_lastPipelineResult.get().getTargets();
+         m_numTargetsSeen = 0;
+         double sumDist = 0;
+         double sumAmbiguity = 0;
+@@ -168,7 +172,7 @@ public class AprilTagCamera {
+         m_photonCamera.takeOutputSnapshot();
+     }
+ 
+-    public PhotonPipelineResult getLatestResult() {
++    public Optional<PhotonPipelineResult> getLatestResult() {
+         return m_lastPipelineResult;
+     }
+ 
+diff --git a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCameraManager.java b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCameraManager.java
+index 687cd7bf2..59195a40a 100644
+--- a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCameraManager.java
++++ b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCameraManager.java
+@@ -10,6 +10,7 @@ import edu.wpi.first.math.numbers.N3;
+ import edu.wpi.first.wpilibj.RobotBase;
+ import org.photonvision.EstimatedRobotPose;
+ import org.photonvision.simulation.VisionSystemSim;
++import org.photonvision.targeting.PhotonPipelineResult;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -58,7 +59,10 @@ public class AprilTagCameraManager {
+     public int numAprilTagsSeen() {
+         int seen = 0;
+         for (AprilTagCamera camera : m_aprilTagCameras) {
+-            seen += camera.getLatestResult().targets.size();
++            Optional<PhotonPipelineResult> maybeResult = camera.getLatestResult();
++            if (maybeResult.isPresent()) {
++                seen += maybeResult.get().targets.size();
++            }
+         }
+         return seen;
+     }
+diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
+index 76ac99d0b..9ce3c7a53 100644
+--- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
++++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
+@@ -5,25 +5,31 @@ import com.gos.lib.properties.pid.PidProperty;
+ import com.revrobotics.spark.SparkBase;
+ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
+-import com.revrobotics.spark.SparkClosedLoopController;
++import com.revrobotics.spark.SparkFlex;
++import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.config.ClosedLoopConfig;
+ import com.revrobotics.spark.config.SparkBaseConfig;
++import com.revrobotics.spark.config.SparkFlexConfig;
++import com.revrobotics.spark.config.SparkMaxConfig;
+ 
+ public final class RevPidPropertyBuilder extends PidProperty.Builder implements IPidPropertyBuilder {
+     private final SparkBase m_motor;
+-    private final SparkBaseConfig m_config;
++    private final SparkBaseConfig m_parentConfig;
++    private final ClosedLoopConfig m_closedLoopConfig;
+     private final ClosedLoopConfig.ClosedLoopSlot m_slot;
+ 
+-    @SuppressWarnings("PMD.UnusedFormalParameter")
+-    public RevPidPropertyBuilder(String baseName, boolean isConstant, SparkClosedLoopController pidController, int slot) {
++    public RevPidPropertyBuilder(String baseName, boolean isConstant, SparkBase motor, SparkBaseConfig parentConfig, ClosedLoopConfig.ClosedLoopSlot slot) {
+         super(baseName, isConstant);
+-        throw new UnsupportedOperationException("Replace me");
++        m_motor = motor;
++        m_parentConfig = parentConfig;
++        m_closedLoopConfig = new ClosedLoopConfig();
++        m_slot = slot;
+     }
+ 
+     @Override
+     public IPidPropertyBuilder addP(double defaultValue) {
+         addP(defaultValue, (double gain) -> {
+-            m_config.closedLoop.p(gain, m_slot);
++            m_closedLoopConfig.p(gain, m_slot);
+             configureMotor();
+         });
+         return this;
+@@ -32,7 +38,7 @@ public final class RevPidPropertyBuilder extends PidProperty.Builder implements
+     @Override
+     public IPidPropertyBuilder addI(double defaultValue) {
+         addI(defaultValue, (double gain) -> {
+-            m_config.closedLoop.i(gain, m_slot);
++            m_closedLoopConfig.i(gain, m_slot);
+             configureMotor();
+         });
+         return this;
+@@ -41,7 +47,7 @@ public final class RevPidPropertyBuilder extends PidProperty.Builder implements
+     @Override
+     public IPidPropertyBuilder addD(double defaultValue) {
+         addD(defaultValue, (double gain) -> {
+-            m_config.closedLoop.d(gain, m_slot);
++            m_closedLoopConfig.d(gain, m_slot);
+             configureMotor();
+         });
+         return this;
+@@ -50,7 +56,7 @@ public final class RevPidPropertyBuilder extends PidProperty.Builder implements
+     @Override
+     public IPidPropertyBuilder addFF(double defaultValue) {
+         addFF(defaultValue, (double gain) -> {
+-            m_config.closedLoop.velocityFF(gain, m_slot);
++            m_closedLoopConfig.velocityFF(gain, m_slot);
+             configureMotor();
+         });
+         return this;
+@@ -59,7 +65,7 @@ public final class RevPidPropertyBuilder extends PidProperty.Builder implements
+     @Override
+     public IPidPropertyBuilder addMaxVelocity(double defaultValue) {
+         addMaxVelocity(defaultValue, (double gain) -> {
+-            m_config.closedLoop.maxMotion.maxVelocity(gain, m_slot);
++            m_closedLoopConfig.maxMotion.maxVelocity(gain, m_slot);
+             configureMotor();
+         });
+         return this;
+@@ -68,13 +74,29 @@ public final class RevPidPropertyBuilder extends PidProperty.Builder implements
+     @Override
+     public IPidPropertyBuilder addMaxAcceleration(double defaultValue) {
+         addMaxAcceleration(defaultValue, (double gain) -> {
+-            m_config.closedLoop.maxMotion.maxAcceleration(gain, m_slot);
++            m_closedLoopConfig.maxMotion.maxAcceleration(gain, m_slot);
+             configureMotor();
+         });
+         return this;
+     }
+ 
+     private void configureMotor() {
+-        m_motor.configure(m_config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        SparkBaseConfig config;
++        if (m_motor instanceof SparkMax) {
++            config = new SparkMaxConfig().apply(m_closedLoopConfig);
++        }
++        else if (m_motor instanceof SparkFlex) {
++            config = new SparkFlexConfig().apply(m_closedLoopConfig);
++        } else {
++            throw new IllegalArgumentException("Unexpected motor type");
++        }
++        m_motor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++    }
++
++    @Override
++    public PidProperty build() {
++        PidProperty output = super.build();
++        m_parentConfig.apply(m_closedLoopConfig);
++        return output;
+     }
+ }
+diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
+index 2b8f34dbf..31f689ee9 100644
+--- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
++++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
+@@ -8,6 +8,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.AbsoluteEncoder;
+ import com.revrobotics.spark.SparkBase;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
+ import com.revrobotics.spark.config.SparkBaseConfig;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+@@ -130,13 +131,13 @@ public class RevSwerveModule {
+ 
+         // Set the PID gains for the driving motor. Note these are example gains, and you
+         // may need to tune them for your own robot!
+-        m_drivingPIDProperty = new RevPidPropertyBuilder("Swerve Driving PID", lockPidConstants, m_drivingPIDController, 0)
++        m_drivingPIDProperty = new RevPidPropertyBuilder("Swerve Driving PID", lockPidConstants, m_drivingSparkMax, drivingMotorConfig, ClosedLoopSlot.kSlot0)
+             .addP(0.04)
+             .addD(0)
+             .addFF(1 / moduleConstants.m_driveWheelFreeSpeedRps)
+             .build();
+ 
+-        m_turningPIDProperty = new RevPidPropertyBuilder("Swerve Turning PID", lockPidConstants, m_turningPIDController, 0)
++        m_turningPIDProperty = new RevPidPropertyBuilder("Swerve Turning PID", lockPidConstants, m_turningSparkMax, turningMotorConfig, ClosedLoopSlot.kSlot0)
+             .addP(1)
+             .addD(0)
+             .build();
+diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
+index 7a03f70f2..3777096bb 100644
+--- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
++++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
+@@ -151,7 +151,7 @@ public class Chassis extends SubsystemBase {
+         double kMinOutput = -1;
+         ClosedLoopSlot smartMotionSlot = ClosedLoopSlot.kSlot0;
+ 
+-        m_leftProperties = new RevPidPropertyBuilder("Chassis", lockConstants, m_leftPidController, 0)
++        m_leftProperties = new RevPidPropertyBuilder("Chassis", lockConstants, m_masterLeft, masterLeftConfig, smartMotionSlot)
+             .addP(kp)
+             .addI(ki)
+             .addD(kd)
+@@ -159,7 +159,7 @@ public class Chassis extends SubsystemBase {
+             .addMaxVelocity(maxVel)
+             .addMaxAcceleration(maxAcc)
+             .build();
+-        m_rightProperties = new RevPidPropertyBuilder("Chassis", lockConstants, m_rightPidController, 0)
++        m_rightProperties = new RevPidPropertyBuilder("Chassis", lockConstants, m_masterRight, masterRightConfig, smartMotionSlot)
+             .addP(kp)
+             .addI(ki)
+             .addD(kd)
+diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
+index af91a38c4..93147e94b 100644
+--- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
++++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
+@@ -15,6 +15,7 @@ import com.revrobotics.RelativeEncoder;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.SparkClosedLoopController;
+ import com.scra.mepi.rapid_react.Constants;
+@@ -90,8 +91,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
+         leftFollowerConfig.follow(m_leftLeader);
+         rightFollowerConfig.follow(m_rightLeader);
+ 
+-        m_leftProperties = setupVelocityPidValues(m_leftController);
+-        m_rightProperties = setupVelocityPidValues(m_rightController);
++        m_leftProperties = setupVelocityPidValues(m_leftLeader, leftLeaderConfig);
++        m_rightProperties = setupVelocityPidValues(m_rightLeader, rightLeaderConfig);
+ 
+         leftLeaderConfig.encoder.positionConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
+         rightLeaderConfig.encoder.positionConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
+@@ -123,8 +124,8 @@ public class DrivetrainSubsystem extends SubsystemBase {
+         }
+     }
+ 
+-    private PidProperty setupVelocityPidValues(SparkClosedLoopController pidController) {
+-        return new RevPidPropertyBuilder("ChassisVelocity", false, pidController, 0)
++    private PidProperty setupVelocityPidValues(SparkMax motor, SparkMaxConfig config) {
++        return new RevPidPropertyBuilder("ChassisVelocity", false, motor, config, ClosedLoopSlot.kSlot0)
+             .addP(1)
+             .addI(0)
+             .addD(0)
+diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
+index 6c05f5701..7e347ef85 100644
+--- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
++++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
+@@ -8,6 +8,7 @@ import com.gos.lib.properties.GosDoubleProperty;
+ import com.gos.lib.properties.pid.PidProperty;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+@@ -66,7 +67,7 @@ public class ShooterSubsytem extends SubsystemBase {
+         m_shooterLookupTable = new ShooterLookupTable();
+         m_encoder = m_shooterMotor.getEncoder();
+         m_pidController = m_shooterMotor.getClosedLoopController();
+-        m_pidProperties = new RevPidPropertyBuilder("Shooter", false, m_pidController, 0)
++        m_pidProperties = new RevPidPropertyBuilder("Shooter", false, m_shooterMotor, shooterMotorConfig, ClosedLoopSlot.kSlot0)
+             .addP(0)
+             .addI(0)
+             .addD(0)
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
+index 266ec88e8..6d437a18d 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
+@@ -11,6 +11,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.gos.rapidreact.Constants;
+ import com.gos.rapidreact.subsystems.sim.LimelightSim;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+@@ -189,8 +190,8 @@ public class ChassisSubsystem extends SubsystemBase {
+ 
+ 
+         // Smart Motion stuff
+-        m_leftProperties = setupPidValues(m_leftPidController);
+-        m_rightProperties = setupPidValues(m_rightPidController);
++        m_leftProperties = setupPidValues(m_leaderLeft, leaderLeftConfig);
++        m_rightProperties = setupPidValues(m_leaderRight, leaderRightConfig);
+ 
+         if (RobotBase.isSimulation()) {
+             DifferentialDrivetrainSim drivetrainSim = DifferentialDrivetrainSim.createKitbotSim(
+@@ -232,8 +233,8 @@ public class ChassisSubsystem extends SubsystemBase {
+         m_gyroAngleRateEntry = odometryTable.getEntry("Angle (dps)");
+     }
+ 
+-    private PidProperty setupPidValues(SparkClosedLoopController pidController) {
+-        return new RevPidPropertyBuilder("Chassis", false, pidController, 0)
++    private PidProperty setupPidValues(SparkMax motor, SparkMaxConfig config) {
++        return new RevPidPropertyBuilder("Chassis", false, motor, config, ClosedLoopSlot.kSlot0)
+             .addP(0.00003) //0.0012776
+             .addI(0)
+             .addD(0)
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
+index 9a2415790..050c6f71c 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
+@@ -6,6 +6,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.gos.rapidreact.Constants;
+ import com.revrobotics.AbsoluteEncoder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+@@ -127,8 +128,8 @@ public class CollectorSubsystem extends SubsystemBase {
+         m_lowerLimitSwitch = new DigitalInput(Constants.INTAKE_LOWER_LIMIT_SWITCH);
+         m_upperLimitSwitch = new DigitalInput(Constants.INTAKE_UPPER_LIMIT_SWITCH);
+ 
+-        m_pivotPIDLeft = setupPidValues(m_pidControllerLeft);
+-        m_pivotPIDRight = setupPidValues(m_pidControllerRight);
++        m_pivotPIDLeft = setupPidValues(m_pivotLeft, pivotLeftConfig);
++        m_pivotPIDRight = setupPidValues(m_pivotRight, pivotRightConfig);
+ 
+         resetPivotEncoder();
+ 
+@@ -160,8 +161,8 @@ public class CollectorSubsystem extends SubsystemBase {
+         }
+     }
+ 
+-    private PidProperty setupPidValues(SparkClosedLoopController pidController) {
+-        return new RevPidPropertyBuilder("Collector", false, pidController, 0)
++    private PidProperty setupPidValues(SparkMax motor, SparkMaxConfig config) {
++        return new RevPidPropertyBuilder("Collector", false, motor, config, ClosedLoopSlot.kSlot0)
+             .addP(0) //0.20201
+             .addI(0)
+             .addD(0)
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
+index 8245a076d..e3a962f28 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
+@@ -7,6 +7,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.gos.rapidreact.Constants;
+ import com.gos.rapidreact.subsystems.utils.ShooterLookupTable;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+@@ -84,14 +85,14 @@ public class ShooterSubsystem extends SubsystemBase {
+         m_rollerEncoder = m_roller.getEncoder();
+ 
+         m_shooterPidController = m_leader.getClosedLoopController();
+-        m_shooterPid = new RevPidPropertyBuilder("Shooter PID", false, m_shooterPidController, 0)
++        m_shooterPid = new RevPidPropertyBuilder("Shooter PID", false, m_leader, leaderConfig, ClosedLoopSlot.kSlot0)
+             .addP(0.003)
+             .addD(0.000055)
+             .addFF(0.000176)
+             .build();
+ 
+         m_rollerPidController = m_roller.getClosedLoopController();
+-        m_rollerPid = new RevPidPropertyBuilder("Roller PID", false, m_rollerPidController, 0)
++        m_rollerPid = new RevPidPropertyBuilder("Roller PID", false, m_roller, rollerConfig, ClosedLoopSlot.kSlot0)
+             .addP(0)
+             .addD(0)
+             .addFF(0)
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
+index 1fe1215a1..9bb301b2f 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
+@@ -23,6 +23,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+@@ -162,7 +163,7 @@ public class ArmPivotSubsystem extends SubsystemBase {
+ 
+         m_lowerLimitSwitch = new DigitalInput(Constants.INTAKE_LOWER_LIMIT_SWITCH);
+         m_upperLimitSwitch = new DigitalInput(Constants.INTAKE_UPPER_LIMIT_SWITCH);
+-        m_sparkPidProperties = setupSparkPidValues(m_sparkPidController);
++        m_sparkPidProperties = setupSparkPidValues(m_pivotMotor, pivotMotorConfig);
+ 
+         m_wpiPidController = new ProfiledPIDController(0, 0, 0, new TrapezoidProfile.Constraints(0, 0));
+         m_wpiPidProperties = new WpiProfiledPidPropertyBuilder("Pivot Arm Motion Profile", false, m_wpiPidController)
+@@ -251,19 +252,19 @@ public class ArmPivotSubsystem extends SubsystemBase {
+         return m_absoluteEncoder.getVelocity();
+     }
+ 
+-    private PidProperty setupSparkPidValues(SparkClosedLoopController pidController) {
++    private PidProperty setupSparkPidValues(SparkMax motor, SparkMaxConfig config) {
+         ///
+         // Full retract:
+         // kp=0.000400
+         // kf=0.005000
+         // kd=0.005000
+         if (Constants.IS_ROBOT_BLOSSOM) {
+-            return new RevPidPropertyBuilder("Pivot Arm", Constants.DEFAULT_LOCK_PROPERTIES, pidController, 0)
++            return new RevPidPropertyBuilder("Pivot Arm", Constants.DEFAULT_LOCK_PROPERTIES, motor, config, ClosedLoopSlot.kSlot0)
+                 .addP(0.03)
+                 .addD(0)
+                 .build();
+         } else {
+-            return new RevPidPropertyBuilder("Pivot Arm", Constants.DEFAULT_LOCK_PROPERTIES, pidController, 0)
++            return new RevPidPropertyBuilder("Pivot Arm", Constants.DEFAULT_LOCK_PROPERTIES, motor, config, ClosedLoopSlot.kSlot0)
+                 .addP(0.0045) // 0.0058
+                 .addD(0.045)
+                 .build();
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
+index 60f6e494e..2ac41221d 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
+@@ -21,6 +21,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.RelativeEncoder;
+ import com.revrobotics.spark.SparkClosedLoopController;
+@@ -159,8 +160,8 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
+         m_leftPIDcontroller = m_leaderLeft.getClosedLoopController();
+         m_rightPIDcontroller = m_leaderRight.getClosedLoopController();
+ 
+-        m_leftPIDProperties = setupPidValues(m_leftPIDcontroller);
+-        m_rightPIDProperties = setupPidValues(m_rightPIDcontroller);
++        m_leftPIDProperties = setupPidValues(m_leaderLeft, leaderLeftConfig);
++        m_rightPIDProperties = setupPidValues(m_leaderRight, leaderRightConfig);
+ 
+         m_rightEncoder = m_leaderRight.getEncoder();
+         m_leftEncoder = m_leaderLeft.getEncoder();
+@@ -225,9 +226,9 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
+         }
+     }
+ 
+-    private PidProperty setupPidValues(SparkClosedLoopController pidController) {
++    private PidProperty setupPidValues(SparkMax motor, SparkMaxConfig config) {
+         if (Constants.IS_ROBOT_BLOSSOM) {
+-            return new RevPidPropertyBuilder("Chassis", true, pidController, 0)
++            return new RevPidPropertyBuilder("Chassis", true, motor, config, ClosedLoopSlot.kSlot0)
+                 .addP(0.6)
+                 .addI(0)
+                 .addD(0)
+@@ -237,7 +238,7 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
+                 .build();
+         }
+         else {
+-            return new RevPidPropertyBuilder("Chassis", false, pidController, 0)
++            return new RevPidPropertyBuilder("Chassis", false, motor, config, ClosedLoopSlot.kSlot0)
+                 .addP(0)
+                 .addI(0)
+                 .addD(0)
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
+index 03a3162dd..89902dc47 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
+@@ -12,6 +12,7 @@ import com.gos.lib.rev.alerts.SparkMaxAlerts;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.AbsoluteEncoder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+@@ -130,7 +131,7 @@ public class ArmPivotSubsystem extends SubsystemBase {
+         pivotMotorConfig.closedLoop.positionWrappingEnabled(true);
+         pivotMotorConfig.closedLoop.positionWrappingMinInput(0);
+         pivotMotorConfig.closedLoop.positionWrappingMaxInput(360);
+-        m_sparkPidProperties = new RevPidPropertyBuilder("Arm Pivot", Constants.DEFAULT_CONSTANT_PROPERTIES, m_sparkPidController, 0)
++        m_sparkPidProperties = new RevPidPropertyBuilder("Arm Pivot", Constants.DEFAULT_CONSTANT_PROPERTIES, m_pivotMotor, pivotMotorConfig, ClosedLoopSlot.kSlot0)
+             .addP(0.18)
+             .addI(0)
+             .addD(0)
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
+index 139c1e0fe..e272cfcfc 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
+@@ -8,6 +8,7 @@ import com.gos.lib.rev.SparkMaxUtil;
+ import com.gos.lib.rev.alerts.SparkMaxAlerts;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+@@ -55,7 +56,7 @@ public class HangerSubsystem extends SubsystemBase {
+         leftHangerMotorConfig.idleMode(IdleMode.kBrake);
+         leftHangerMotorConfig.smartCurrentLimit(60);
+         m_leftPidController = m_leftHangerMotor.getClosedLoopController();
+-        m_leftPidProperties = createPidProperties(m_leftPidController);
++        m_leftPidProperties = createPidProperties(m_leftHangerMotor, leftHangerMotorConfig);
+         m_leftHangerMotor.configure(leftHangerMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+         m_leftHangerAlert = new SparkMaxAlerts(m_leftHangerMotor, "hanger a");
+ 
+@@ -66,7 +67,7 @@ public class HangerSubsystem extends SubsystemBase {
+         rightHangerMotorConfig.idleMode(IdleMode.kBrake);
+         rightHangerMotorConfig.smartCurrentLimit(60);
+         m_rightPidController = m_rightHangerMotor.getClosedLoopController();
+-        m_rightPidProperties = createPidProperties(m_rightPidController);
++        m_rightPidProperties = createPidProperties(m_rightHangerMotor, rightHangerMotorConfig);
+         m_rightHangerMotor.configure(rightHangerMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+         m_rightHangerAlert = new SparkMaxAlerts(m_rightHangerMotor, "hanger b");
+ 
+@@ -86,8 +87,8 @@ public class HangerSubsystem extends SubsystemBase {
+ 
+     }
+ 
+-    private PidProperty createPidProperties(SparkClosedLoopController pidController) {
+-        return new RevPidPropertyBuilder("HangerPid", false, pidController, 0)
++    private PidProperty createPidProperties(SparkMax motor, SparkMaxConfig config) {
++        return new RevPidPropertyBuilder("HangerPid", false, motor, config, ClosedLoopSlot.kSlot0)
+             .addP(0.1)
+             .build();
+     }
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
+index 3488d8ee4..7987c6b5e 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
+@@ -10,6 +10,7 @@ import com.revrobotics.spark.SparkBase.ControlType;
+ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
+ import com.revrobotics.spark.config.ClosedLoopConfig;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+@@ -60,7 +61,7 @@ public class ShooterSubsystem extends SubsystemBase {
+         m_shooterEncoder = m_shooterMotorLeader.getEncoder();
+         m_pidController = m_shooterMotorLeader.getClosedLoopController();
+         shooterMotorLeaderConfig.closedLoop.feedbackSensor(ClosedLoopConfig.FeedbackSensor.kPrimaryEncoder);
+-        m_pidProperties = new RevPidPropertyBuilder("Shooter", Constants.DEFAULT_CONSTANT_PROPERTIES, m_pidController, 0)
++        m_pidProperties = new RevPidPropertyBuilder("Shooter", Constants.DEFAULT_CONSTANT_PROPERTIES, m_shooterMotorLeader, shooterMotorLeaderConfig, ClosedLoopSlot.kSlot0)
+             .addP(1.5e-4)
+             .addI(0.0)
+             .addD(0.0)
+-- 
+2.38.1.windows.1
+

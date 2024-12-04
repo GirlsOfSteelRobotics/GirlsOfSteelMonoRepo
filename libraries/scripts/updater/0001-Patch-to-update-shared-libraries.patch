@@ -1,0 +1,1255 @@
+From 87ea2400cada76316aac97a3329ec50476b1b411 Mon Sep 17 00:00:00 2001
+From: PJ Reiniger <pj.reiniger@gmail.com>
+Date: Wed, 13 Nov 2024 01:44:02 -0500
+Subject: [PATCH 1/3] Patch to update shared libraries
+
+---
+ .../java/com/gos/codelabs/pid/Constants.java  |  28 ++--
+ .../pid/subsystems/ChassisSubsystem.java      |  14 +-
+ .../pid/subsystems/ElevatorSubsystem.java     |   2 +-
+ .../feedforward/ArmFeedForwardProperty.java   |  20 +--
+ .../lib/properties/feedforward/BUILD.bazel    |   1 +
+ .../ElevatorFeedForwardProperty.java          |  20 +--
+ .../SimpleMotorFeedForwardProperty.java       |  29 ++++-
+ .../gos/lib/photonvision/AprilTagCamera.java  |  14 +-
+ .../gos/lib/rev/alerts/SparkMaxAlerts.java    | 120 ++++++++++++++----
+ .../SparkMaxMotorsMoveChecklist.java          |   5 +-
+ .../properties/pid/RevPidPropertyBuilder.java |  48 +++++--
+ .../gos/lib/rev/swerve/RevSwerveModule.java   |  12 +-
+ .../infinite_recharge/subsystems/Chassis.java |   3 +-
+ .../infinite_recharge/subsystems/Shooter.java |  14 +-
+ .../subsystems/ShooterSubsytem.java           |   7 +-
+ .../com/gos/rapidreact/subsystems/BUILD.bazel |   1 +
+ .../subsystems/ChassisSubsystem.java          |   9 +-
+ .../subsystems/ShooterSubsystem.java          |  11 +-
+ .../main/java/com/gos/chargedup/BUILD.bazel   |   1 +
+ .../subsystems/ArmPivotSubsystem.java         |   5 +-
+ .../gos/chargedup/subsystems/BaseChassis.java |   6 +-
+ .../chargedup/subsystems/ClawSubsystem.java   |   6 +-
+ .../subsystems/TankDriveChassisSubsystem.java |  27 ++--
+ .../subsystems/ArmPivotSubsystem.java         |   7 +-
+ .../subsystems/HangerSubsystem.java           |   6 +-
+ .../subsystems/IntakeSubsystem.java           |   4 +-
+ .../subsystems/ShooterSubsystem.java          |  16 ++-
+ .../subsystems/sysid/ArmPivotSysId.java       |  28 ++--
+ .../subsystems/sysid/ShooterSysId.java        |  27 ++--
+ 29 files changed, 347 insertions(+), 144 deletions(-)
+
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/Constants.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/Constants.java
+index 41255fac9..0d4e7a977 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/Constants.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/Constants.java
+@@ -7,6 +7,7 @@ package com.gos.codelabs.pid;
+ 
+ import edu.wpi.first.math.VecBuilder;
+ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
++import edu.wpi.first.math.numbers.N1;
+ import edu.wpi.first.math.numbers.N2;
+ import edu.wpi.first.math.system.LinearSystem;
+ import edu.wpi.first.math.system.plant.DCMotor;
+@@ -101,15 +102,20 @@ public final class Constants {
+ 
+         public static ElevatorSim createSim() {
+ 
++            LinearSystem<N2, N1, N2> plant = LinearSystemId.createElevatorSystem(
++                ElevatorSimConstants.ELEVATOR_GEARBOX,
++                ElevatorSimConstants.CARRIAGE_MASS,
++                ElevatorSimConstants.DRUM_RADIUS,
++                ElevatorSimConstants.ELEVATOR_GEARING
++            );
+             return new ElevatorSim(
+-                    ElevatorSimConstants.ELEVATOR_GEARBOX,
+-                    ElevatorSimConstants.ELEVATOR_GEARING,
+-                    ElevatorSimConstants.CARRIAGE_MASS,
+-                    ElevatorSimConstants.DRUM_RADIUS,
+-                    ElevatorSimConstants.MIN_ELEVATOR_HEIGHT,
+-                    ElevatorSimConstants.MAX_ELEVATOR_HEIGHT, true,
+-                    0,
+-                    SIMULATE_SENSOR_NOISE ?  VecBuilder.fill(0.01) : null); // NOPMD
++                plant,
++                ElevatorSimConstants.ELEVATOR_GEARBOX,
++                ElevatorSimConstants.MIN_ELEVATOR_HEIGHT,
++                ElevatorSimConstants.MAX_ELEVATOR_HEIGHT,
++                true,
++                0,
++                SIMULATE_SENSOR_NOISE ?  VecBuilder.fill(0.01).getData() : new double[]{}); // NOPMD
+         }
+ 
+         private ElevatorSimConstants() {
+@@ -123,8 +129,10 @@ public final class Constants {
+         public static final double INERTIA = 0.03;
+ 
+         public static FlywheelSim createSim() {
+-            return new FlywheelSim(FlywheelSimConstants.GEARBOX, FlywheelSimConstants.GEARING, FlywheelSimConstants.INERTIA,
+-                    SIMULATE_SENSOR_NOISE ? VecBuilder.fill(0.5) : null); // NOPMD
++            LinearSystem<N1, N1, N1> plant =
++                LinearSystemId.createFlywheelSystem(FlywheelSimConstants.GEARBOX, FlywheelSimConstants.INERTIA, FlywheelSimConstants.GEARING);
++            return new FlywheelSim(plant, FlywheelSimConstants.GEARBOX,
++                    SIMULATE_SENSOR_NOISE ? VecBuilder.fill(0.5).getData() : new double[]{}); // NOPMD
+         }
+ 
+         private FlywheelSimConstants() {
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
+index 47cfa73db..934890720 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
+@@ -11,7 +11,7 @@ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.SparkClosedLoopController;
+-import com.revrobotics.SparkClosedLoopController.ArbFFUnits;
++import com.revrobotics.spark.SparkClosedLoopController.ArbFFUnits;
+ import edu.wpi.first.math.geometry.Pose2d;
+ import edu.wpi.first.math.geometry.Rotation2d;
+ import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+@@ -64,14 +64,14 @@ public class ChassisSubsystem extends SubsystemBase {
+         SparkMax leftDriveB = new SparkMax(Constants.CAN_CHASSIS_LEFT_B, MotorType.kBrushless);
+ 
+         SparkMaxConfig leftDriveAConfig = new SparkMaxConfig();
+-        leftDriveB.restoreFactoryDefaults();
+-        leftDriveB.follow(m_leftDriveA);
++        SparkMaxConfig leftDriveBConfig = new SparkMaxConfig();
++        leftDriveBConfig.follow(m_leftDriveA);
+ 
+         m_rightDriveA = new SparkMax(Constants.CAN_CHASSIS_RIGHT_A, MotorType.kBrushless);
+         SparkMax rightDriveB = new SparkMax(Constants.CAN_CHASSIS_RIGHT_B, MotorType.kBrushless);
+         SparkMaxConfig rightDriveAConfig = new SparkMaxConfig();
+-        rightDriveB.restoreFactoryDefaults();
+-        rightDriveB.follow(m_rightDriveA);
++        SparkMaxConfig rightDriveBConfig = new SparkMaxConfig();
++        rightDriveBConfig.follow(m_rightDriveA);
+         m_rightDriveA.setInverted(true);
+ 
+         m_leftEncoder = m_leftDriveA.getEncoder();
+@@ -105,9 +105,9 @@ public class ChassisSubsystem extends SubsystemBase {
+         }
+ 
+         m_leftDriveA.configure(leftDriveAConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+-        leftDriveB.burnFlash();
++        leftDriveB.configure(leftDriveBConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+         m_rightDriveA.configure(rightDriveAConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+-        rightDriveB.burnFlash();
++        rightDriveB.configure(rightDriveBConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+     }
+ 
+     private PidProperty setupVelocityPidConstants(SparkClosedLoopController pidController) {
+diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
+index 82b360dcb..04ea5f15e 100644
+--- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
++++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
+@@ -5,11 +5,11 @@ import com.gos.lib.properties.GosDoubleProperty;
+ import com.gos.lib.properties.pid.PidProperty;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.SparkClosedLoopController.ArbFFUnits;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkClosedLoopController;
+-import com.revrobotics.SparkClosedLoopController.ArbFFUnits;
+ import edu.wpi.first.math.util.Units;
+ import edu.wpi.first.wpilibj.DigitalInput;
+ import edu.wpi.first.wpilibj.RobotBase;
+diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
+index 675b57def..34fbbf5fc 100644
+--- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
++++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
+@@ -17,50 +17,54 @@ public class ArmFeedForwardProperty extends BaseFeedForwardProperty {
+ 
+     public ArmFeedForwardProperty addKff(double defaultValue) {
+         m_properties.add(createDoubleProperty("kff", defaultValue,
+-            (v) -> m_feedForward = new ArmFeedforward(m_feedForward.ks, m_feedForward.kg, v, m_feedForward.ka)));
++            (v) -> m_feedForward = new ArmFeedforward(m_feedForward.getKs(), m_feedForward.getKg(), v, m_feedForward.getKa())));
+         return this;
+     }
+ 
+     public ArmFeedForwardProperty addKs(double defaultValue) {
+         m_properties.add(createDoubleProperty("ks", defaultValue,
+-            (v) -> m_feedForward = new ArmFeedforward(v, m_feedForward.kg, m_feedForward.kv, m_feedForward.ka)));
++            (v) -> m_feedForward = new ArmFeedforward(v, m_feedForward.getKg(), m_feedForward.getKv(), m_feedForward.getKa())));
+         return this;
+     }
+ 
+ 
+     public ArmFeedForwardProperty addKa(double defaultValue) {
+         m_properties.add(createDoubleProperty("ka", defaultValue,
+-            (v) -> m_feedForward = new ArmFeedforward(m_feedForward.ks, m_feedForward.kg, m_feedForward.kv, v)));
++            (v) -> m_feedForward = new ArmFeedforward(m_feedForward.getKs(), m_feedForward.getKg(), m_feedForward.getKv(), v)));
+         return this;
+     }
+ 
+     public ArmFeedForwardProperty addKg(double defaultValue) {
+         m_properties.add(createDoubleProperty("kg", defaultValue,
+-            (v) -> m_feedForward = new ArmFeedforward(m_feedForward.ks, v, m_feedForward.kv, m_feedForward.ka)));
++            (v) -> m_feedForward = new ArmFeedforward(m_feedForward.getKs(), v, m_feedForward.getKv(), m_feedForward.getKa())));
+         return this;
+     }
+ 
++    @SuppressWarnings("removal")
++    @Deprecated(forRemoval = true, since = "2025")
+     public double calculate(double positionRadians, double velocity) {
+         return m_feedForward.calculate(positionRadians, velocity);
+     }
+ 
++    @SuppressWarnings("removal")
++    @Deprecated(forRemoval = true, since = "2025")
+     public double calculate(double positionRadians, double velocityRadPerSec, double accelRadPerSecSquared) {
+         return m_feedForward.calculate(positionRadians, velocityRadPerSec, accelRadPerSecSquared);
+     }
+ 
+     public double getKs() {
+-        return m_feedForward.ks;
++        return m_feedForward.getKs();
+     }
+ 
+     public double getKg() {
+-        return m_feedForward.kg;
++        return m_feedForward.getKg();
+     }
+ 
+     public double getKFf() {
+-        return m_feedForward.kv;
++        return m_feedForward.getKv();
+     }
+ 
+     public double getKa() {
+-        return m_feedForward.ka;
++        return m_feedForward.getKa();
+     }
+ }
+diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/BUILD.bazel b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/BUILD.bazel
+index ff1e8c547..2ef99c5fd 100644
+--- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/BUILD.bazel
++++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/BUILD.bazel
+@@ -7,5 +7,6 @@ gos_java_library(
+     deps = [
+         "//libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties",
+         "@bzlmodrio-allwpilib//libraries/java/wpimath",
++        "@bzlmodrio-allwpilib//libraries/java/wpiunits",
+     ],
+ )
+diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ElevatorFeedForwardProperty.java b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ElevatorFeedForwardProperty.java
+index aac5e9f2d..ef026c978 100644
+--- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ElevatorFeedForwardProperty.java
++++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ElevatorFeedForwardProperty.java
+@@ -17,50 +17,54 @@ public class ElevatorFeedForwardProperty extends BaseFeedForwardProperty {
+ 
+     public ElevatorFeedForwardProperty addKff(double defaultValue) {
+         m_properties.add(createDoubleProperty("kff", defaultValue,
+-            (v) -> m_feedForward = new ElevatorFeedforward(m_feedForward.ks, m_feedForward.kg, v, m_feedForward.ka)));
++            (v) -> m_feedForward = new ElevatorFeedforward(m_feedForward.getKs(), m_feedForward.getKg(), v, m_feedForward.getKa())));
+         return this;
+     }
+ 
+     public ElevatorFeedForwardProperty addKs(double defaultValue) {
+         m_properties.add(createDoubleProperty("ks", defaultValue,
+-            (v) -> m_feedForward = new ElevatorFeedforward(v, m_feedForward.kg, m_feedForward.kv, m_feedForward.ka)));
++            (v) -> m_feedForward = new ElevatorFeedforward(v, m_feedForward.getKg(), m_feedForward.getKv(), m_feedForward.getKa())));
+         return this;
+     }
+ 
+ 
+     public ElevatorFeedForwardProperty addKa(double defaultValue) {
+         m_properties.add(createDoubleProperty("ka", defaultValue,
+-            (v) -> m_feedForward = new ElevatorFeedforward(m_feedForward.ks, m_feedForward.kg, m_feedForward.kv, v)));
++            (v) -> m_feedForward = new ElevatorFeedforward(m_feedForward.getKs(), m_feedForward.getKg(), m_feedForward.getKv(), v)));
+         return this;
+     }
+ 
+     public ElevatorFeedForwardProperty addKg(double defaultValue) {
+         m_properties.add(createDoubleProperty("kg", defaultValue,
+-            (v) -> m_feedForward = new ElevatorFeedforward(m_feedForward.ks, v, m_feedForward.kv, m_feedForward.ka)));
++            (v) -> m_feedForward = new ElevatorFeedforward(m_feedForward.getKs(), v, m_feedForward.getKv(), m_feedForward.getKa())));
+         return this;
+     }
+ 
++    @SuppressWarnings("removal")
++    @Deprecated(forRemoval = true, since = "2025")
+     public double calculate(double velocity, double acceleration) {
+         return m_feedForward.calculate(velocity, acceleration);
+     }
+ 
++    @SuppressWarnings("removal")
++    @Deprecated(forRemoval = true, since = "2025")
+     public double calculate(double velocity) {
+         return m_feedForward.calculate(velocity);
+     }
+ 
+     public double getKs() {
+-        return m_feedForward.ks;
++        return m_feedForward.getKs();
+     }
+ 
+     public double getKg() {
+-        return m_feedForward.kg;
++        return m_feedForward.getKg();
+     }
+ 
+     public double getKFf() {
+-        return m_feedForward.kv;
++        return m_feedForward.getKv();
+     }
+ 
+     public double getKa() {
+-        return m_feedForward.ka;
++        return m_feedForward.getKa();
+     }
+ }
+diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/SimpleMotorFeedForwardProperty.java b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/SimpleMotorFeedForwardProperty.java
+index 430e597ce..bd6fde09d 100644
+--- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/SimpleMotorFeedForwardProperty.java
++++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/SimpleMotorFeedForwardProperty.java
+@@ -1,6 +1,11 @@
+ package com.gos.lib.properties.feedforward;
+ 
+ import edu.wpi.first.math.controller.SimpleMotorFeedforward;
++import edu.wpi.first.units.Measure;
++import edu.wpi.first.units.PerUnit;
++import edu.wpi.first.units.TimeUnit;
++import edu.wpi.first.units.Unit;
++import edu.wpi.first.units.measure.Voltage;
+ 
+ public class SimpleMotorFeedForwardProperty extends BaseFeedForwardProperty {
+     private SimpleMotorFeedforward m_feedForward;
+@@ -16,41 +21,51 @@ public class SimpleMotorFeedForwardProperty extends BaseFeedForwardProperty {
+ 
+     public SimpleMotorFeedForwardProperty addKff(double defaultValue) {
+         m_properties.add(createDoubleProperty("kff", defaultValue,
+-            (v) -> m_feedForward = new SimpleMotorFeedforward(m_feedForward.ks, v, m_feedForward.ka)));
++            (v) -> m_feedForward = new SimpleMotorFeedforward(m_feedForward.getKs(), v, m_feedForward.getKa())));
+         return this;
+     }
+ 
+     public SimpleMotorFeedForwardProperty addKs(double defaultValue) {
+         m_properties.add(createDoubleProperty("ks", defaultValue,
+-            (v) -> m_feedForward = new SimpleMotorFeedforward(v, m_feedForward.kv, m_feedForward.ka)));
++            (v) -> m_feedForward = new SimpleMotorFeedforward(v, m_feedForward.getKv(), m_feedForward.getKa())));
+         return this;
+     }
+ 
+ 
+     public SimpleMotorFeedForwardProperty addKa(double defaultValue) {
+         m_properties.add(createDoubleProperty("ka", defaultValue,
+-            (v) -> m_feedForward = new SimpleMotorFeedforward(m_feedForward.ks, m_feedForward.kv, v)));
++            (v) -> m_feedForward = new SimpleMotorFeedforward(m_feedForward.getKs(), m_feedForward.getKv(), v)));
+         return this;
+     }
+ 
++    @SuppressWarnings("removal")
++    @Deprecated(forRemoval = true, since = "2025")
+     public double calculate(double velocity) {
+-        return m_feedForward.calculate(velocity);
++        return m_feedForward.calculate(velocity, 0);
+     }
+ 
++    @SuppressWarnings("removal")
++    @Deprecated(forRemoval = true, since = "2025")
+     public double calculate(double velocity, double acceleration) {
+         return m_feedForward.calculate(velocity, acceleration);
+     }
+ 
++    public <U extends Unit> Voltage calculate(
++        Measure<? extends PerUnit<U, TimeUnit>> currentVelocity,
++        Measure<? extends PerUnit<U, TimeUnit>> nextVelocity) {
++        return m_feedForward.calculate(currentVelocity, nextVelocity);
++    }
++
+     public double getKs() {
+-        return m_feedForward.ks;
++        return m_feedForward.getKs();
+     }
+ 
+     public double getKFf() {
+-        return m_feedForward.kv;
++        return m_feedForward.getKv();
+     }
+ 
+     public double getKa() {
+-        return m_feedForward.ka;
++        return m_feedForward.getKa();
+     }
+ 
+ }
+diff --git a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
+index 057678fd3..7acc43198 100644
+--- a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
++++ b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
+@@ -63,7 +63,7 @@ public class AprilTagCamera {
+         m_multiTagStddev = multiTagStddev;
+         m_field = new AprilTagCameraObject(field, m_cameraName);
+ 
+-        m_photonPoseEstimator = new PhotonPoseEstimator(aprilTagLayout, PhotonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, m_photonCamera, m_robotToCamera.getTransform());
++        m_photonPoseEstimator = new PhotonPoseEstimator(aprilTagLayout, PhotonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, m_robotToCamera.getTransform());
+         m_photonPoseEstimator.setMultiTagFallbackStrategy(PhotonPoseEstimator.PoseStrategy.LOWEST_AMBIGUITY);
+ 
+         if (RobotBase.isSimulation()) {
+@@ -90,7 +90,15 @@ public class AprilTagCamera {
+ 
+         m_photonPoseEstimator.setRobotToCameraTransform(robotToCamera);
+         m_photonPoseEstimator.setReferencePose(prevEstimatedRobotPose);
+-        m_maybeResult = m_photonPoseEstimator.update();
++        m_maybeResult = Optional.empty();
++
++        for (PhotonPipelineResult result : m_photonCamera.getAllUnreadResults()) {
++            update(robotToCamera, result);
++        }
++    }
++
++    private void update(Transform3d robotToCamera, PhotonPipelineResult result) {
++        m_maybeResult = m_photonPoseEstimator.update(result);
+ 
+         if (m_maybeResult.isEmpty()) {
+             m_field.clearCameraResult();
+@@ -107,7 +115,7 @@ public class AprilTagCamera {
+             m_field.setCameraResult(m_maybeResult.get().estimatedPose, aprilTags);
+         }
+ 
+-        m_lastPipelineResult = m_photonCamera.getLatestResult();
++        m_lastPipelineResult = result;
+ 
+         m_logger.updateLogs();
+     }
+diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/alerts/SparkMaxAlerts.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/alerts/SparkMaxAlerts.java
+index 7f5b0d92a..76ac16109 100644
+--- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/alerts/SparkMaxAlerts.java
++++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/alerts/SparkMaxAlerts.java
+@@ -1,57 +1,131 @@
+ package com.gos.lib.rev.alerts;
+ 
+ import com.revrobotics.spark.SparkBase;
++import com.revrobotics.spark.SparkBase.Faults;
++import com.revrobotics.spark.SparkBase.Warnings;
+ import org.littletonrobotics.frc2023.util.Alert;
++import org.littletonrobotics.frc2023.util.Alert.AlertType;
+ 
++@SuppressWarnings({"PMD.CyclomaticComplexity", "PMD.NPathComplexity"})
+ public class SparkMaxAlerts {
+     public final SparkBase m_sparkMax;
+     public final String m_motorString;
+-    public final Alert m_alert;
+-    public final Alert m_alertSticky;
++    public final Alert m_faultAlert;
++    public final Alert m_stickyFaultAlert;
++    public final Alert m_warningsAlert;
++    public final Alert m_stickyWarningAlert;
+ 
+     public SparkMaxAlerts(SparkBase sparkMax, String motor) {
+         m_sparkMax = sparkMax;
+         m_motorString = motor;
+-        m_alert = new Alert(m_motorString, Alert.AlertType.ERROR);
+-        m_alertSticky = new Alert(m_motorString, Alert.AlertType.WARNING);
++
++        m_faultAlert = new Alert(m_motorString, Alert.AlertType.ERROR);
++        m_stickyFaultAlert = new Alert(m_motorString, Alert.AlertType.WARNING);
++
++        m_warningsAlert = new Alert(m_motorString, AlertType.WARNING);
++        m_stickyWarningAlert = new Alert(m_motorString, AlertType.INFO);
+     }
+ 
+     public void checkAlerts() {
+         checkFaults();
+         checkStickyFaults();
++        checkWarnings();
++        checkStickyWarnings();
+     }
+ 
+     private void checkFaults() {
+-        short bitmask = m_sparkMax.getFaults();
++        String errorString = getFaultString(m_sparkMax.hasActiveFault(), m_sparkMax.getFaults());
++        m_faultAlert.setText(errorString);
++        m_faultAlert.set(!(errorString.equals(m_motorString)));
++    }
++
++    private void checkStickyFaults() {
++        String errorString = getFaultString(m_sparkMax.hasStickyFault(), m_sparkMax.getStickyFaults());
++        m_stickyFaultAlert.setText(errorString);
++        m_stickyFaultAlert.set(!(errorString.equals(m_motorString)));
++    }
++
++    private void checkWarnings() {
++        String errorString = getWarningString(m_sparkMax.hasActiveWarning(), m_sparkMax.getWarnings());
++        m_warningsAlert.setText(errorString);
++        m_warningsAlert.set(!(errorString.equals(m_motorString)));
++    }
+ 
++    private void checkStickyWarnings() {
++        String errorString = getWarningString(m_sparkMax.hasStickyWarning(), m_sparkMax.getStickyWarnings());
++        m_stickyWarningAlert.setText(errorString);
++        m_stickyWarningAlert.set(!(errorString.equals(m_motorString)));
++    }
++
++    private String getFaultString(boolean hasFault, Faults faults) {
+         StringBuilder errorBuilder = new StringBuilder(m_motorString);
+-        for (SparkBase.FaultID faultId : SparkBase.FaultID.values()) {
+-            if ((bitmask & (1 << faultId.value)) != 0) {
+-                errorBuilder.append('\n').append(faultId);
+-            }
++        if (!hasFault) {
++            return errorBuilder.toString();
+         }
+ 
+-        String errorString = errorBuilder.toString();
+-        m_alert.setText(errorString);
++        errorBuilder.append("Faults Detected: ");
+ 
+-        m_alert.set(!(errorString.equals(m_motorString)));
+-    }
++        if (faults.other) {
++            errorBuilder.append("Other");
++        }
++        if (faults.motorType) {
++            errorBuilder.append("Motor Type");
++        }
++        if (faults.sensor) {
++            errorBuilder.append("Sensor");
++        }
++        if (faults.can) {
++            errorBuilder.append("CAN");
++        }
++        if (faults.temperature) {
++            errorBuilder.append("Temperature");
++        }
++        if (faults.gateDriver) {
++            errorBuilder.append("Gate Driver");
++        }
++        if (faults.escEeprom) {
++            errorBuilder.append("EEPROM");
++        }
++        if (faults.firmware) {
++            errorBuilder.append("Firmware");
++        }
+ 
+-    private void checkStickyFaults() {
+-        short bitmask = m_sparkMax.getStickyFaults();
++        return errorBuilder.toString();
++    }
+ 
++    private String getWarningString(boolean hasWarning, Warnings warnings) {
+         StringBuilder errorBuilder = new StringBuilder(m_motorString);
+-        for (SparkBase.FaultID faultId : SparkBase.FaultID.values()) {
+-            if ((bitmask & (1 << faultId.value)) != 0) {
+-                errorBuilder.append('\n').append(faultId);
+-            }
++        if (!hasWarning) {
++            return errorBuilder.toString();
+         }
+ 
+-        String errorString = errorBuilder.toString();
+-        m_alertSticky.setText(errorString);
+-
+-        m_alertSticky.set(!(errorString.equals(m_motorString)));
++        errorBuilder.append("Warnings Detected: ");
+ 
++        if (warnings.brownout) {
++            errorBuilder.append("Brownout");
++        }
++        if (warnings.overcurrent) {
++            errorBuilder.append("Overcurrent");
++        }
++        if (warnings.escEeprom) {
++            errorBuilder.append("ESC EEPROM");
++        }
++        if (warnings.extEeprom) {
++            errorBuilder.append("EXT EEPROM");
++        }
++        if (warnings.sensor) {
++            errorBuilder.append("Sensor");
++        }
++        if (warnings.stall) {
++            errorBuilder.append("Stall");
++        }
++        if (warnings.hasReset) {
++            errorBuilder.append("Has Reset");
++        }
++        if (warnings.other) {
++            errorBuilder.append("Other");
++        }
+ 
++        return errorBuilder.toString();
+     }
+ }
+diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/checklists/SparkMaxMotorsMoveChecklist.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/checklists/SparkMaxMotorsMoveChecklist.java
+index 4cfd21f4b..3c0a79174 100644
+--- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/checklists/SparkMaxMotorsMoveChecklist.java
++++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/checklists/SparkMaxMotorsMoveChecklist.java
+@@ -2,6 +2,7 @@ package com.gos.lib.rev.checklists;
+ 
+ 
+ import com.revrobotics.RelativeEncoder;
++import com.revrobotics.spark.SparkBase;
+ import edu.wpi.first.wpilibj.Timer;
+ import edu.wpi.first.wpilibj2.command.Command;
+ import edu.wpi.first.wpilibj2.command.Subsystem;
+@@ -11,7 +12,7 @@ public class SparkMaxMotorsMoveChecklist extends Command {
+ 
+     private final RelativeEncoder m_encoder;
+ 
+-    private final CANSparkMax m_motor;
++    private final SparkBase m_motor;
+ 
+     private final Timer m_timer;
+ 
+@@ -23,7 +24,7 @@ public class SparkMaxMotorsMoveChecklist extends Command {
+ 
+     private final Alert m_alert;
+ 
+-    public SparkMaxMotorsMoveChecklist(Subsystem subsystem, CANSparkMax motor, String label, double expectedDist) {
++    public SparkMaxMotorsMoveChecklist(Subsystem subsystem, SparkBase motor, String label, double expectedDist) {
+         addRequirements(subsystem);
+         m_encoder = motor.getEncoder();
+         m_motor = motor;
+diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
+index 05057793d..76ac99d0b 100644
+--- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
++++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
+@@ -2,51 +2,79 @@ package com.gos.lib.rev.properties.pid;
+ 
+ import com.gos.lib.properties.pid.IPidPropertyBuilder;
+ import com.gos.lib.properties.pid.PidProperty;
++import com.revrobotics.spark.SparkBase;
++import com.revrobotics.spark.SparkBase.PersistMode;
++import com.revrobotics.spark.SparkBase.ResetMode;
+ import com.revrobotics.spark.SparkClosedLoopController;
++import com.revrobotics.spark.config.ClosedLoopConfig;
++import com.revrobotics.spark.config.SparkBaseConfig;
+ 
+ public final class RevPidPropertyBuilder extends PidProperty.Builder implements IPidPropertyBuilder {
+-    private final SparkClosedLoopController m_pidController;
+-    private final int m_slot;
++    private final SparkBase m_motor;
++    private final SparkBaseConfig m_config;
++    private final ClosedLoopConfig.ClosedLoopSlot m_slot;
+ 
++    @SuppressWarnings("PMD.UnusedFormalParameter")
+     public RevPidPropertyBuilder(String baseName, boolean isConstant, SparkClosedLoopController pidController, int slot) {
+         super(baseName, isConstant);
+-        m_pidController = pidController;
+-        m_slot = slot;
++        throw new UnsupportedOperationException("Replace me");
+     }
+ 
+     @Override
+     public IPidPropertyBuilder addP(double defaultValue) {
+-        addP(defaultValue, (double gain) -> m_pidController.setP(gain, m_slot));
++        addP(defaultValue, (double gain) -> {
++            m_config.closedLoop.p(gain, m_slot);
++            configureMotor();
++        });
+         return this;
+     }
+ 
+     @Override
+     public IPidPropertyBuilder addI(double defaultValue) {
+-        addI(defaultValue, (double gain) -> m_pidController.setI(gain, m_slot));
++        addI(defaultValue, (double gain) -> {
++            m_config.closedLoop.i(gain, m_slot);
++            configureMotor();
++        });
+         return this;
+     }
+ 
+     @Override
+     public IPidPropertyBuilder addD(double defaultValue) {
+-        addD(defaultValue, (double gain) -> m_pidController.setD(gain, m_slot));
++        addD(defaultValue, (double gain) -> {
++            m_config.closedLoop.d(gain, m_slot);
++            configureMotor();
++        });
+         return this;
+     }
+ 
+     @Override
+     public IPidPropertyBuilder addFF(double defaultValue) {
+-        addFF(defaultValue, (double gain) -> m_pidController.setFF(gain, m_slot));
++        addFF(defaultValue, (double gain) -> {
++            m_config.closedLoop.velocityFF(gain, m_slot);
++            configureMotor();
++        });
+         return this;
+     }
+ 
+     @Override
+     public IPidPropertyBuilder addMaxVelocity(double defaultValue) {
+-        addMaxVelocity(defaultValue, (double gain) -> m_pidController.setSmartMotionMaxVelocity(gain, m_slot));
++        addMaxVelocity(defaultValue, (double gain) -> {
++            m_config.closedLoop.maxMotion.maxVelocity(gain, m_slot);
++            configureMotor();
++        });
+         return this;
+     }
+ 
+     @Override
+     public IPidPropertyBuilder addMaxAcceleration(double defaultValue) {
+-        addMaxAcceleration(defaultValue, (double gain) -> m_pidController.setSmartMotionMaxAccel(gain, m_slot));
++        addMaxAcceleration(defaultValue, (double gain) -> {
++            m_config.closedLoop.maxMotion.maxAcceleration(gain, m_slot);
++            configureMotor();
++        });
+         return this;
+     }
++
++    private void configureMotor() {
++        m_motor.configure(m_config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++    }
+ }
+diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
+index 9a3fbfdd5..2b8f34dbf 100644
+--- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
++++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
+@@ -8,6 +8,8 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.AbsoluteEncoder;
+ import com.revrobotics.spark.SparkBase;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
++import com.revrobotics.spark.config.SparkBaseConfig;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+@@ -292,12 +294,14 @@ public class RevSwerveModule {
+     }
+ 
+     public void setCoastMode() {
+-        drivingMotorConfig.idleMode(IdleMode.kCoast);
+-        turningMotorConfig.idleMode(IdleMode.kCoast);
++        SparkBaseConfig config = new SparkMaxConfig().idleMode(IdleMode.kCoast);
++        m_drivingSparkMax.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_turningSparkMax.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+     }
+ 
+     public void setBrakeMode() {
+-        drivingMotorConfig.idleMode(IdleMode.kBrake);
+-        turningMotorConfig.idleMode(IdleMode.kBrake);
++        SparkBaseConfig config = new SparkMaxConfig().idleMode(IdleMode.kBrake);
++        m_drivingSparkMax.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_turningSparkMax.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+     }
+ }
+diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
+index 724de785c..7a03f70f2 100644
+--- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
++++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
+@@ -12,6 +12,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
++import com.revrobotics.spark.config.ClosedLoopConfig.ClosedLoopSlot;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ 
+@@ -148,7 +149,7 @@ public class Chassis extends SubsystemBase {
+         double allowedErr = 0;
+         double kMaxOutput = 1;
+         double kMinOutput = -1;
+-        int smartMotionSlot = 0;
++        ClosedLoopSlot smartMotionSlot = ClosedLoopSlot.kSlot0;
+ 
+         m_leftProperties = new RevPidPropertyBuilder("Chassis", lockConstants, m_leftPidController, 0)
+             .addP(kp)
+diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
+index 100dc936b..90f40e004 100644
+--- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
++++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
+@@ -11,6 +11,9 @@ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ 
++import edu.wpi.first.math.numbers.N1;
++import edu.wpi.first.math.system.LinearSystem;
++import edu.wpi.first.math.system.plant.LinearSystemId;
+ import edu.wpi.first.networktables.GenericEntry;
+ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+ import org.snobotv2.module_wrappers.rev.RevEncoderSimWrapper;
+@@ -91,7 +94,10 @@ public class Shooter extends SubsystemBase {
+ 
+         if (RobotBase.isSimulation()) {
+             DCMotor gearbox = DCMotor.getVex775Pro(2);
+-            FlywheelSim flywheelSim = new FlywheelSim(gearbox, 1.66, .008);
++            LinearSystem<N1, N1, N1> plant =
++                LinearSystemId.createFlywheelSystem(gearbox, .008, 1.66);
++            FlywheelSim flywheelSim = new FlywheelSim(plant, gearbox);
++
+             m_simulator = new FlywheelSimWrapper(flywheelSim,
+                     new RevMotorControllerSimWrapper(m_master),
+                     RevEncoderSimWrapper.create(m_master));
+@@ -119,8 +125,10 @@ public class Shooter extends SubsystemBase {
+         m_customNetworkTable.getEntry("Current RPM").setDouble(rpm);
+         m_customNetworkTable.getEntry("Goal RPM").setDouble(m_goalRPM);
+ 
+-        masterConfig.closedLoop.p(m_dashboardKp.getValue());
+-        masterConfig.closedLoop.velocityFF(m_dashboardKff.getValue());
++        SparkMaxConfig config = new SparkMaxConfig();
++        config.closedLoop.p(m_dashboardKp.getValue());
++        config.closedLoop.velocityFF(m_dashboardKff.getValue());
++        m_master.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+         // System.out.println("kp: " + m_dashboardKp.getValue() + ", " + m_dashboardKff.getValue() + " goal: " + m_goalRPM + "== " + rpm);
+ 
+         m_isAtShooterSpeedEntry.setBoolean(isAtFullSpeed());
+diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
+index 133028c24..6c05f5701 100644
+--- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
++++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
+@@ -18,7 +18,10 @@ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.SparkClosedLoopController;
+ import com.scra.mepi.rapid_react.Constants;
+ import com.scra.mepi.rapid_react.ShooterLookupTable;
++import edu.wpi.first.math.numbers.N1;
++import edu.wpi.first.math.system.LinearSystem;
+ import edu.wpi.first.math.system.plant.DCMotor;
++import edu.wpi.first.math.system.plant.LinearSystemId;
+ import edu.wpi.first.wpilibj.RobotBase;
+ import edu.wpi.first.wpilibj.simulation.FlywheelSim;
+ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+@@ -75,7 +78,9 @@ public class ShooterSubsytem extends SubsystemBase {
+ 
+         if (RobotBase.isSimulation()) {
+             DCMotor gearbox = DCMotor.getNeo550(2);
+-            FlywheelSim shooterFlywheelSim = new FlywheelSim(gearbox, 1, 0.01);
++            LinearSystem<N1, N1, N1> plant =
++                LinearSystemId.createFlywheelSystem(gearbox, 0.01, 1.0);
++            FlywheelSim shooterFlywheelSim = new FlywheelSim(plant, gearbox);
+             m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim,
+                 new RevMotorControllerSimWrapper(m_shooterMotor),
+                 RevEncoderSimWrapper.create(m_shooterMotor));
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/BUILD.bazel b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/BUILD.bazel
+index 12294775a..ed7d71fa0 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/BUILD.bazel
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/BUILD.bazel
+@@ -22,6 +22,7 @@ gos_java_library(
+         "@bzlmodrio-allwpilib//libraries/java/wpilibNewCommands",
+         "@bzlmodrio-allwpilib//libraries/java/wpilibj",
+         "@bzlmodrio-allwpilib//libraries/java/wpimath",
++        "@bzlmodrio-allwpilib//libraries/java/wpiunits",
+         "@bzlmodrio-phoenix6//libraries/java/wpiapi-java",
+         "@bzlmodrio-revlib//libraries/java/revlib-java",
+         "@maven//:org_snobotv2_snobot_sim_java_base",
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
+index 426a3d3df..266ec88e8 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
+@@ -43,6 +43,7 @@ import org.snobotv2.module_wrappers.rev.RevEncoderSimWrapper;
+ import org.snobotv2.module_wrappers.rev.RevMotorControllerSimWrapper;
+ import org.snobotv2.sim_wrappers.DifferentialDrivetrainSimWrapper;
+ 
++import static edu.wpi.first.units.Units.Degree;
+ 
+ 
+ @SuppressWarnings("PMD.TooManyFields")
+@@ -180,8 +181,10 @@ public class ChassisSubsystem extends SubsystemBase {
+         m_field = new Field2d();
+ 
+         m_openLoopRampRateProperty = new HeavyDoubleProperty((double val) -> {
+-            m_leaderLeft.setOpenLoopRampRate(val);
+-            m_leaderRight.setOpenLoopRampRate(val);
++            SparkMaxConfig config = new SparkMaxConfig();
++            config.openLoopRampRate(val);
++            m_leaderLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++            m_leaderRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+         }, DRIVER_OL_RAMP_RATE);
+ 
+ 
+@@ -308,7 +311,7 @@ public class ChassisSubsystem extends SubsystemBase {
+     }
+ 
+     public double getYawAngle() {
+-        return m_gyro.getYaw().getValue();
++        return m_gyro.getYaw().getValue().in(Degree);
+     }
+ 
+     public double getOdometryAngle() {
+diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
+index 2e78c4c70..8245a076d 100644
+--- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
++++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
+@@ -15,7 +15,10 @@ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.SparkClosedLoopController;
++import edu.wpi.first.math.numbers.N1;
++import edu.wpi.first.math.system.LinearSystem;
+ import edu.wpi.first.math.system.plant.DCMotor;
++import edu.wpi.first.math.system.plant.LinearSystemId;
+ import edu.wpi.first.networktables.NetworkTable;
+ import edu.wpi.first.networktables.NetworkTableEntry;
+ import edu.wpi.first.networktables.NetworkTableInstance;
+@@ -107,13 +110,17 @@ public class ShooterSubsystem extends SubsystemBase {
+ 
+         if (RobotBase.isSimulation()) {
+             DCMotor shooterGearbox = DCMotor.getNeo550(2);
+-            FlywheelSim shooterFlywheelSim = new FlywheelSim(shooterGearbox, 1, 0.01);
++            LinearSystem<N1, N1, N1> shooterPlant =
++                LinearSystemId.createFlywheelSystem(shooterGearbox, 0.01, 1.0);
++            FlywheelSim shooterFlywheelSim = new FlywheelSim(shooterPlant, shooterGearbox);
+             m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim,
+                 new RevMotorControllerSimWrapper(m_leader),
+                 RevEncoderSimWrapper.create(m_leader));
+ 
+             DCMotor backspinGearbox = DCMotor.getNeo550(2);
+-            FlywheelSim backspinFlywheelSim = new FlywheelSim(backspinGearbox, 1, 0.01);
++            LinearSystem<N1, N1, N1> backspinPlant =
++                LinearSystemId.createFlywheelSystem(shooterGearbox, 0.01, 1.0);
++            FlywheelSim backspinFlywheelSim = new FlywheelSim(backspinPlant, backspinGearbox);
+             m_backspinSimulator = new FlywheelSimWrapper(backspinFlywheelSim,
+                 new RevMotorControllerSimWrapper(m_roller),
+                 RevEncoderSimWrapper.create(m_roller));
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/BUILD.bazel b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/BUILD.bazel
+index e25600f3c..eb0d79245 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/BUILD.bazel
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/BUILD.bazel
+@@ -29,6 +29,7 @@ gos_java_robot(
+         "@bzlmodrio-allwpilib//libraries/java/wpilibNewCommands",
+         "@bzlmodrio-allwpilib//libraries/java/wpilibj",
+         "@bzlmodrio-allwpilib//libraries/java/wpimath",
++        "@bzlmodrio-allwpilib//libraries/java/wpiunits",
+         "@bzlmodrio-allwpilib//libraries/java/wpiutil",
+         "@bzlmodrio-pathplannerlib//libraries/java/pathplannerlib-java",
+         "@bzlmodrio-phoenix6//libraries/java/wpiapi-java",
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
+index e14cf51e6..1fe1215a1 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
+@@ -23,6 +23,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.spark.SparkMax;
+ import com.revrobotics.spark.SparkBase.PersistMode;
+ import com.revrobotics.spark.SparkBase.ResetMode;
++import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
+ import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ 
+@@ -411,7 +412,9 @@ public class ArmPivotSubsystem extends SubsystemBase {
+ 
+ 
+     private void setIdleMode(IdleMode idleMode) {
+-        pivotMotorConfig.idleMode(idleMode);
++        SparkMaxConfig config = new SparkMaxConfig();
++        config.idleMode(idleMode);
++        m_pivotMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+     }
+ 
+     ////////////////
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
+index aa01c2be1..640a7fa0f 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
+@@ -32,6 +32,8 @@ import org.littletonrobotics.frc2023.FieldConstants;
+ import java.util.ArrayList;
+ import java.util.List;
+ 
++import static edu.wpi.first.units.Units.Degrees;
++
+ public abstract class BaseChassis extends SubsystemBase implements ChassisSubsystemInterface {
+     protected static final double PITCH_LOWER_LIMIT = -3.0;
+     protected static final double PITCH_UPPER_LIMIT = 3.0;
+@@ -159,12 +161,12 @@ public abstract class BaseChassis extends SubsystemBase implements ChassisSubsys
+     @Override
+     public double getPitch() {
+         // INTENTIONALLY ROLL, WE ARE NOT BEING PSYCHOPATHS I PROMISE
+-        return m_gyro.getRoll().getValue();
++        return m_gyro.getRoll().getValue().in(Degrees);
+     }
+ 
+     @Override
+     public double getYaw() {
+-        return m_gyro.getYaw().getValue();
++        return m_gyro.getYaw().getValue().in(Degrees);
+     }
+ 
+     @Override
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ClawSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ClawSubsystem.java
+index 0bc5b9057..c4d60c70c 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ClawSubsystem.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ClawSubsystem.java
+@@ -52,7 +52,11 @@ public class ClawSubsystem extends SubsystemBase {
+         m_clawMotor.configure(clawMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+         m_clawMotorErrorAlerts = new SparkMaxAlerts(m_clawMotor, "claw motor");
+ 
+-        currentLimit = new HeavyIntegerProperty(m_clawMotor:Config.smartCurrentLimit, CLAW_CURRENT_LIMIT);
++        m_currentLimit = new HeavyIntegerProperty((x) -> {
++            SparkMaxConfig config = new SparkMaxConfig();
++            config.smartCurrentLimit(x);
++            m_clawMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        }, CLAW_CURRENT_LIMIT);
+ 
+         m_networkTableEntries = new LoggingUtil("Claw Subsystem");
+         m_networkTableEntries.addDouble("Current Amps", m_clawMotor::getOutputCurrent);
+diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
+index 4f712afdc..60f6e494e 100644
+--- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
++++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
+@@ -34,6 +34,7 @@ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+ import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+ import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
+ import edu.wpi.first.math.util.Units;
++import edu.wpi.first.units.measure.AngularVelocity;
+ import edu.wpi.first.wpilibj.DriverStation;
+ import edu.wpi.first.wpilibj.RobotBase;
+ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+@@ -53,6 +54,8 @@ import java.io.IOException;
+ import java.util.List;
+ import java.util.Optional;
+ 
++import static edu.wpi.first.units.Units.DegreesPerSecond;
++import static edu.wpi.first.units.Units.Volts;
+ 
+ 
+ @SuppressWarnings("PMD.GodClass")
+@@ -298,7 +301,9 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
+     public void turnToAngle(double angleGoal) {
+         SmartDashboard.putNumber("goal angle chassis pid", angleGoal);
+         double steerVoltage = m_turnAnglePID.calculate(m_odometry.getPoseMeters().getRotation().getDegrees(), angleGoal);
+-        steerVoltage += m_turnAnglePIDFFProperty.calculate(m_turnAnglePID.getSetpoint().velocity);
++        AngularVelocity currentVelocity = DegreesPerSecond.of(m_gyro.getRate());
++        AngularVelocity goalVelocity = DegreesPerSecond.of(m_turnAnglePID.getSetpoint().velocity);
++        steerVoltage += m_turnAnglePIDFFProperty.calculate(currentVelocity, goalVelocity).in(Volts);
+ 
+         m_gyroAngleGoalVelocityEntry.setNumber(m_turnAnglePID.getSetpoint().velocity);
+ 
+@@ -402,18 +407,22 @@ public class TankDriveChassisSubsystem extends BaseChassis implements ChassisSub
+     }
+ 
+     public void drivetrainToBrakeMode() {
+-        leaderLeftConfig.idleMode(IdleMode.kBrake);
+-        followerLeftConfig.idleMode(IdleMode.kBrake);
+-        leaderRightConfig.idleMode(IdleMode.kBrake);
+-        followerRightConfig.idleMode(IdleMode.kBrake);
++        SparkMaxConfig config = new SparkMaxConfig();
++        config.idleMode(IdleMode.kBrake);
++        m_leaderLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_followerLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_leaderRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_followerRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+ 
+     }
+ 
+     public void drivetrainToCoastMode() {
+-        leaderLeftConfig.idleMode(IdleMode.kCoast);
+-        followerLeftConfig.idleMode(IdleMode.kCoast);
+-        leaderRightConfig.idleMode(IdleMode.kCoast);
+-        followerRightConfig.idleMode(IdleMode.kCoast);
++        SparkMaxConfig config = new SparkMaxConfig();
++        config.idleMode(IdleMode.kCoast);
++        m_leaderLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_followerLeft.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_leaderRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_followerRight.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+ 
+     }
+ 
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
+index 57d159d4d..03a3162dd 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
+@@ -12,6 +12,7 @@ import com.gos.lib.rev.alerts.SparkMaxAlerts;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.AbsoluteEncoder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.config.ClosedLoopConfig.FeedbackSensor;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ 
+@@ -314,8 +315,10 @@ public class ArmPivotSubsystem extends SubsystemBase {
+     }
+ 
+     public void setIdleMode(IdleMode idleMode) {
+-        pivotMotorConfig.idleMode(idleMode);
+-        followMotorConfig.idleMode(idleMode);
++        SparkMaxConfig config = new SparkMaxConfig();
++        config.idleMode(idleMode);
++        m_pivotMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_followMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+     }
+ 
+     /////////////////////////////////////
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
+index 9eb245da7..139c1e0fe 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
+@@ -190,8 +190,10 @@ public class HangerSubsystem extends SubsystemBase {
+     }
+ 
+     public void setIdleMode(IdleMode mode) {
+-        m_leftHangerMotor.setIdleMode(mode);
+-        m_rightHangerMotor.setIdleMode(mode);
++        SparkMaxConfig config = new SparkMaxConfig();
++        config.idleMode(mode);
++        m_leftHangerMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
++        m_rightHangerMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+     }
+ 
+     /////////////////////////////////////
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/IntakeSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/IntakeSubsystem.java
+index d3c196114..d692803a2 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/IntakeSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/IntakeSubsystem.java
+@@ -77,7 +77,9 @@ public class IntakeSubsystem extends SubsystemBase {
+     }
+ 
+     private void setIdleMode(IdleMode idleMode) {
+-        intakeMotorConfig.idleMode(idleMode);
++        SparkMaxConfig config = new SparkMaxConfig();
++        config.idleMode(idleMode);
++        m_intakeMotor.configure(config, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+     }
+ 
+     /////////////////////////////////////
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
+index 27ef8f790..3488d8ee4 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
+@@ -7,12 +7,19 @@ import com.gos.lib.properties.pid.PidProperty;
+ import com.gos.lib.rev.alerts.SparkMaxAlerts;
+ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
+ import com.revrobotics.spark.SparkBase.ControlType;
++import com.revrobotics.spark.SparkBase.PersistMode;
++import com.revrobotics.spark.SparkBase.ResetMode;
++import com.revrobotics.spark.config.ClosedLoopConfig;
++import com.revrobotics.spark.config.SparkMaxConfig;
+ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+ import com.revrobotics.spark.SparkLowLevel.MotorType;
+ import com.revrobotics.RelativeEncoder;
+ import com.revrobotics.spark.SparkFlex;
+ import com.revrobotics.spark.SparkClosedLoopController;
++import edu.wpi.first.math.numbers.N1;
++import edu.wpi.first.math.system.LinearSystem;
+ import edu.wpi.first.math.system.plant.DCMotor;
++import edu.wpi.first.math.system.plant.LinearSystemId;
+ import edu.wpi.first.wpilibj.DigitalInput;
+ import edu.wpi.first.wpilibj.RobotBase;
+ import edu.wpi.first.wpilibj.RobotController;
+@@ -86,11 +93,10 @@ public class ShooterSubsystem extends SubsystemBase {
+ 
+         if (RobotBase.isSimulation()) {
+             DCMotor gearbox = DCMotor.getNeo550(2);
+-            FlywheelSim shooterFlywheelSim = new FlywheelSim(gearbox, 1.0, 0.01);
+-            this.m_shooterSimulator = new FlywheelSimWrapper(
+-                shooterFlywheelSim,
+-                new RevMotorControllerSimWrapper(this.m_shooterMotorLeader),
+-                RevEncoderSimWrapper.create(this.m_shooterMotorLeader));
++            LinearSystem<N1, N1, N1> plant =
++                LinearSystemId.createFlywheelSystem(gearbox, 0.01, 1.0);
++            FlywheelSim shooterFlywheelSim = new FlywheelSim(plant, gearbox);
++            this.m_shooterSimulator = new FlywheelSimWrapper(shooterFlywheelSim, new RevMotorControllerSimWrapper(this.m_shooterMotorLeader), RevEncoderSimWrapper.create(this.m_shooterMotorLeader));
+         }
+ 
+     }
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ArmPivotSysId.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ArmPivotSysId.java
+index 49a53f295..6d4b26a1d 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ArmPivotSysId.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ArmPivotSysId.java
+@@ -1,41 +1,41 @@
+ package com.gos.crescendo2024.subsystems.sysid;
+ 
+ import com.gos.crescendo2024.subsystems.ArmPivotSubsystem;
+-import edu.wpi.first.units.Angle;
+-import edu.wpi.first.units.Measure;
+-import edu.wpi.first.units.MutableMeasure;
+-import edu.wpi.first.units.Units;
+-import edu.wpi.first.units.Velocity;
+-import edu.wpi.first.units.Voltage;
++import edu.wpi.first.units.measure.MutAngle;
++import edu.wpi.first.units.measure.MutAngularVelocity;
++import edu.wpi.first.units.measure.MutVoltage;
++import edu.wpi.first.units.measure.Voltage;
+ import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
+ import edu.wpi.first.wpilibj2.command.Command;
+ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+ 
+-import static edu.wpi.first.units.MutableMeasure.mutable;
+ import static edu.wpi.first.units.Units.Degrees;
+ import static edu.wpi.first.units.Units.DegreesPerSecond;
++import static edu.wpi.first.units.Units.Second;
++import static edu.wpi.first.units.Units.Seconds;
+ import static edu.wpi.first.units.Units.Volts;
+ 
+ public class ArmPivotSysId {
+     private final SysIdRoutine m_routine;
+     private final ArmPivotSubsystem m_armPivot;
+ 
+-    private final MutableMeasure<Voltage> m_appliedVoltage = mutable(Volts.of(0));
+-    private final MutableMeasure<Angle> m_angle = mutable(Degrees.of(0));
+-    private final MutableMeasure<Velocity<Angle>> m_velocity = mutable(DegreesPerSecond.of(0));
++
++    private final MutVoltage m_appliedVoltage = Volts.mutable(0);
++    private final MutAngle m_angle = Degrees.mutable(0);
++    private final MutAngularVelocity m_velocity = DegreesPerSecond.mutable(0);
+ 
+     public ArmPivotSysId(ArmPivotSubsystem armPivot) {
+         m_armPivot = armPivot;
+         m_routine = new SysIdRoutine(
+             new SysIdRoutine.Config(
+-                Units.Volts.of(.25).per(Units.Seconds.of(1.0)),
+-                Units.Volts.of(2.5),
+-                Units.Seconds.of(10.0)),
++                Volts.of(0.25).per(Second),
++                Volts.of(2.5),
++                Seconds.of(10)),
+             new SysIdRoutine.Mechanism(this::setVoltage, this::logMotors, armPivot)
+         );
+     }
+ 
+-    private void setVoltage(Measure<Voltage> volts) {
++    private void setVoltage(Voltage volts) {
+         m_armPivot.setVoltage(volts.in(Volts));
+     }
+ 
+diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ShooterSysId.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ShooterSysId.java
+index 3cbf62749..0bcb94e0c 100644
+--- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ShooterSysId.java
++++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ShooterSysId.java
+@@ -1,41 +1,40 @@
+ package com.gos.crescendo2024.subsystems.sysid;
+ 
+ import com.gos.crescendo2024.subsystems.ShooterSubsystem;
+-import edu.wpi.first.units.Angle;
+-import edu.wpi.first.units.Measure;
+-import edu.wpi.first.units.MutableMeasure;
+-import edu.wpi.first.units.Units;
+-import edu.wpi.first.units.Velocity;
+-import edu.wpi.first.units.Voltage;
++import edu.wpi.first.units.measure.MutAngle;
++import edu.wpi.first.units.measure.MutAngularVelocity;
++import edu.wpi.first.units.measure.MutVoltage;
++import edu.wpi.first.units.measure.Voltage;
+ import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
+ import edu.wpi.first.wpilibj2.command.Command;
+ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+ 
+-import static edu.wpi.first.units.MutableMeasure.mutable;
+ import static edu.wpi.first.units.Units.Rotations;
+ import static edu.wpi.first.units.Units.RotationsPerSecond;
++import static edu.wpi.first.units.Units.Second;
++import static edu.wpi.first.units.Units.Seconds;
+ import static edu.wpi.first.units.Units.Volts;
+ 
+ public class ShooterSysId {
+     private final SysIdRoutine m_routine;
+     private final ShooterSubsystem m_shooter;
+ 
+-    private final MutableMeasure<Voltage> m_appliedVoltage = mutable(Volts.of(0));
+-    private final MutableMeasure<Angle> m_rotations = mutable(Rotations.of(0));
+-    private final MutableMeasure<Velocity<Angle>> m_velocity = mutable(RotationsPerSecond.of(0));
++    private final MutVoltage m_appliedVoltage = Volts.mutable(0);
++    private final MutAngle m_rotations = Rotations.mutable(0);
++    private final MutAngularVelocity m_velocity = RotationsPerSecond.mutable(0);
+ 
+     public ShooterSysId(ShooterSubsystem shooter) {
+         m_shooter = shooter;
+         m_routine = new SysIdRoutine(
+             new SysIdRoutine.Config(
+-                Units.Volts.of(1.0).per(Units.Seconds.of(1.0)),
+-                Units.Volts.of(7.0),
+-                Units.Seconds.of(10.0)),
++                Volts.of(1).per(Second),
++                Volts.of(7),
++                Seconds.of(10)),
+             new SysIdRoutine.Mechanism(this::setVoltage, this::logMotors, shooter)
+         );
+     }
+ 
+-    private void setVoltage(Measure<Voltage> volts) {
++    private void setVoltage(Voltage volts) {
+         m_shooter.setVoltage(volts.in(Volts));
+     }
+ 
+-- 
+2.38.1.windows.1
+
