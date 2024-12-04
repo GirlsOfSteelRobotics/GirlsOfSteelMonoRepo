@@ -1,41 +1,41 @@
 {
   "fileName": "SnobotSim.json",
   "name": "SnobotSim",
-  "version": "2024.02.25-17",
-  "uuid": "403fe130-d404-11ee-b94b-5f4c12167830",
-  "frcYear": "2024",
-  "mavenUrls": ["https://raw.githubusercontent.com/snobotsim/maven_repo/master/release"],
-  "jsonUrl": "http://raw.githubusercontent.com/snobotsim/maven_repo/master/release/SnobotSim.json",
+  "version": "2024.11.12-07",
+  "uuid": "1cbd5f40-a0cc-11ef-8925-d78bf2efa8d8",
+  "frcYear": "2025",
+  "mavenUrls": ["https://raw.githubusercontent.com/snobotsim/maven_repo/master/development"],
+  "jsonUrl": "http://raw.githubusercontent.com/snobotsim/maven_repo/master/development/SnobotSim.json",
   "javaDependencies": [
     {
       "groupId": "org.snobotv2",
       "artifactId": "snobot_sim_java_base",
-      "version": "2024.02.25-17"
+      "version": "2024.11.12-07"
     },
     {
       "groupId": "org.snobotv2",
       "artifactId": "snobot_sim_java_navx",
-      "version": "2024.02.25-17"
+      "version": "2024.11.12-07"
     },
     {
       "groupId": "org.snobotv2",
       "artifactId": "snobot_sim_java_phoenix5",
-      "version": "2024.02.25-17"
+      "version": "2024.11.12-07"
     },
     {
       "groupId": "org.snobotv2",
       "artifactId": "snobot_sim_java_phoenix6",
-      "version": "2024.02.25-17"
+      "version": "2024.11.12-07"
     },
     {
       "groupId": "org.snobotv2",
       "artifactId": "snobot_sim_java_revlib",
-      "version": "2024.02.25-17"
+      "version": "2024.11.12-07"
     },
     {
       "groupId": "org.snobotv2",
       "artifactId": "snobot_swerve_sim",
-      "version": "2024.02.25-17"
+      "version": "2024.11.12-07"
     }
   ],
   "jniDependencies": [],
