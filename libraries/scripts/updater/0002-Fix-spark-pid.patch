@@ -1,4 +1,4 @@
-From 905411c5b4434a949d984cd5f3c2d4d2e7d4ce01 Mon Sep 17 00:00:00 2001
+From ab448023948c20bf3db00fb6c688032adb08b58e Mon Sep 17 00:00:00 2001
 From: PJ Reiniger <pj.reiniger@gmail.com>
 Date: Wed, 13 Nov 2024 22:22:28 -0500
 Subject: [PATCH 2/3] Fix spark pid
@@ -25,7 +25,7 @@ Subject: [PATCH 2/3] Fix spark pid
  18 files changed, 130 insertions(+), 74 deletions(-)
 
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
-index 934890720..12fb7ef3e 100644
+index 93489072..12fb7ef3 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
 @@ -9,6 +9,7 @@ import com.revrobotics.RelativeEncoder;
@@ -131,7 +131,7 @@ index 934890720..12fb7ef3e 100644
  
          SmartDashboard.putNumber("Left Velocity Goal", leftVelocity);
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
-index 04ea5f15e..2ff2a450e 100644
+index 04ea5f15..2ff2a450 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
 @@ -5,11 +5,15 @@ import com.gos.lib.properties.GosDoubleProperty;
@@ -175,7 +175,7 @@ index 04ea5f15e..2ff2a450e 100644
              m_elevatorSim = new ElevatorSimWrapper(Constants.ElevatorSimConstants.createSim(),
                      new RevMotorControllerSimWrapper(m_liftMotor),
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
-index 7ef4cfb7b..caf68af44 100644
+index 7ef4cfb7..caf68af4 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
 @@ -11,10 +11,14 @@ import com.gos.codelabs.pid.Constants;
@@ -213,7 +213,7 @@ index 7ef4cfb7b..caf68af44 100644
              m_simulator = new FlywheelSimWrapper(Constants.FlywheelSimConstants.createSim(),
                      new RevMotorControllerSimWrapper(m_wheelMotor),
 diff --git a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
-index 7acc43198..99ab6fe16 100644
+index 7acc4319..99ab6fe1 100644
 --- a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
 +++ b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
 @@ -43,7 +43,7 @@ public class AprilTagCamera {
@@ -264,7 +264,7 @@ index 7acc43198..99ab6fe16 100644
      }
  
 diff --git a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCameraManager.java b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCameraManager.java
-index 687cd7bf2..59195a40a 100644
+index 687cd7bf..59195a40 100644
 --- a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCameraManager.java
 +++ b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCameraManager.java
 @@ -10,6 +10,7 @@ import edu.wpi.first.math.numbers.N3;
@@ -288,7 +288,7 @@ index 687cd7bf2..59195a40a 100644
          return seen;
      }
 diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
-index 76ac99d0b..9ce3c7a53 100644
+index 76ac99d0..9ce3c7a5 100644
 --- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
 +++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
 @@ -5,25 +5,31 @@ import com.gos.lib.properties.pid.PidProperty;
@@ -398,7 +398,7 @@ index 76ac99d0b..9ce3c7a53 100644
      }
  }
 diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
-index 2b8f34dbf..31f689ee9 100644
+index 2b8f34db..31f689ee 100644
 --- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
 +++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
 @@ -8,6 +8,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
@@ -426,7 +426,7 @@ index 2b8f34dbf..31f689ee9 100644
              .addD(0)
              .build();
 diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
-index 7a03f70f2..3777096bb 100644
+index 7a03f70f..3777096b 100644
 --- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
 +++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
 @@ -151,7 +151,7 @@ public class Chassis extends SubsystemBase {
@@ -448,7 +448,7 @@ index 7a03f70f2..3777096bb 100644
              .addI(ki)
              .addD(kd)
 diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
-index af91a38c4..93147e94b 100644
+index af91a38c..93147e94 100644
 --- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
 +++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
 @@ -15,6 +15,7 @@ import com.revrobotics.RelativeEncoder;
@@ -482,7 +482,7 @@ index af91a38c4..93147e94b 100644
              .addI(0)
              .addD(0)
 diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
-index 6c05f5701..7e347ef85 100644
+index 6c05f570..7e347ef8 100644
 --- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
 +++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
 @@ -8,6 +8,7 @@ import com.gos.lib.properties.GosDoubleProperty;
@@ -503,7 +503,7 @@ index 6c05f5701..7e347ef85 100644
              .addI(0)
              .addD(0)
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
-index 266ec88e8..6d437a18d 100644
+index 266ec88e..6d437a18 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
 @@ -11,6 +11,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
@@ -537,7 +537,7 @@ index 266ec88e8..6d437a18d 100644
              .addI(0)
              .addD(0)
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
-index 9a2415790..050c6f71c 100644
+index 9a241579..050c6f71 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
 @@ -6,6 +6,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
@@ -571,7 +571,7 @@ index 9a2415790..050c6f71c 100644
              .addI(0)
              .addD(0)
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
-index 8245a076d..e3a962f28 100644
+index 8245a076..e3a962f2 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
 @@ -7,6 +7,7 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
@@ -600,7 +600,7 @@ index 8245a076d..e3a962f28 100644
              .addD(0)
              .addFF(0)
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
-index 1fe1215a1..9bb301b2f 100644
+index 1fe1215a..9bb301b2 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
 @@ -23,6 +23,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
@@ -644,7 +644,7 @@ index 1fe1215a1..9bb301b2f 100644
                  .addD(0.045)
                  .build();
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
-index 60f6e494e..2ac41221d 100644
+index 60f6e494..2ac41221 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
 @@ -21,6 +21,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
@@ -688,7 +688,7 @@ index 60f6e494e..2ac41221d 100644
                  .addI(0)
                  .addD(0)
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
-index 03a3162dd..89902dc47 100644
+index 03a3162d..89902dc4 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
 @@ -12,6 +12,7 @@ import com.gos.lib.rev.alerts.SparkMaxAlerts;
@@ -709,7 +709,7 @@ index 03a3162dd..89902dc47 100644
              .addI(0)
              .addD(0)
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
-index 139c1e0fe..e272cfcfc 100644
+index 139c1e0f..e272cfcf 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
 @@ -8,6 +8,7 @@ import com.gos.lib.rev.SparkMaxUtil;
@@ -750,7 +750,7 @@ index 139c1e0fe..e272cfcfc 100644
              .build();
      }
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
-index 3488d8ee4..7987c6b5e 100644
+index 3488d8ee..7987c6b5 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
 @@ -10,6 +10,7 @@ import com.revrobotics.spark.SparkBase.ControlType;
@@ -771,5 +771,5 @@ index 3488d8ee4..7987c6b5e 100644
              .addI(0.0)
              .addD(0.0)
 -- 
-2.38.1.windows.1
+2.34.1
 

@@ -1,4 +1,4 @@
-From 6c89c65db1ae19bc411cddb8f3c12be75bb97784 Mon Sep 17 00:00:00 2001
+From 77c33951b458b5c83c02cdf80ed8c15629befda6 Mon Sep 17 00:00:00 2001
 From: PJ Reiniger <pj.reiniger@gmail.com>
 Date: Wed, 13 Nov 2024 23:17:11 -0500
 Subject: [PATCH 3/3] Fix deprecation
@@ -34,7 +34,7 @@ Subject: [PATCH 3/3] Fix deprecation
  27 files changed, 121 insertions(+), 75 deletions(-)
 
 diff --git a/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ChassisSubsystem.java b/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ChassisSubsystem.java
-index b4cb38342..27d84a11b 100644
+index b4cb3834..27d84a11 100644
 --- a/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ChassisSubsystem.java
 +++ b/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ChassisSubsystem.java
 @@ -110,8 +110,8 @@ public class ChassisSubsystem extends SubsystemBase implements AutoCloseable {
@@ -49,7 +49,7 @@ index b4cb38342..27d84a11b 100644
                      RevEncoderSimWrapper.create(m_rightDriveA),
                      new ADXRS450GyroWrapper(m_gyro));
 diff --git a/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ElevatorSubsystem.java b/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ElevatorSubsystem.java
-index bb55384c4..bbee36df0 100644
+index bb55384c..bbee36df 100644
 --- a/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ElevatorSubsystem.java
 +++ b/codelabs/basic_simulator/src/main/java/com/gos/codelabs/basic_simulator/subsystems/ElevatorSubsystem.java
 @@ -65,7 +65,7 @@ public class ElevatorSubsystem extends SubsystemBase implements AutoCloseable {
@@ -62,7 +62,7 @@ index bb55384c4..bbee36df0 100644
              m_elevatorSim.setLowerLimitSwitch(new BaseDigitalInputWrapper(new DIOSim(m_lowerLimitSwitch)::setValue));
              m_elevatorSim.setUpperLimitSwitch(new BaseDigitalInputWrapper(new DIOSim(m_upperLimitSwitch)::setValue));
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/commands/auton/DriveTrajectoryCommand.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/commands/auton/DriveTrajectoryCommand.java
-index 10c0c8b96..6a67d984f 100644
+index 10c0c8b9..6a67d984 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/commands/auton/DriveTrajectoryCommand.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/commands/auton/DriveTrajectoryCommand.java
 @@ -32,6 +32,7 @@ public class DriveTrajectoryCommand extends BaseRamseteCoordinateGuiCommand {
@@ -74,7 +74,7 @@ index 10c0c8b96..6a67d984f 100644
          super(trajectorySupplier.get(),
                  new RamseteController(AutoConstants.RAMSETE_B, AutoConstants.RAMSETE_ZETA),
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
-index 12fb7ef3e..47c5243f9 100644
+index 12fb7ef3..47c5243f 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
 @@ -1,6 +1,7 @@
@@ -110,7 +110,7 @@ index 12fb7ef3e..47c5243f9 100644
  
          SmartDashboard.putNumber("Left SM Goal", leftDistance);
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
-index 2ff2a450e..e19158c86 100644
+index 2ff2a450..e19158c8 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
 @@ -1,6 +1,7 @@
@@ -142,7 +142,7 @@ index 2ff2a450e..e19158c86 100644
      }
  
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
-index caf68af44..7bec1a34c 100644
+index caf68af4..7bec1a34 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ShooterSubsystem.java
 @@ -8,6 +8,7 @@
@@ -165,7 +165,7 @@ index caf68af44..7bec1a34c 100644
          }
      }
 diff --git a/evergreen_robots/SCRAWestCoastDrive/src/main/java/com/gos/scra/wcd/commands/ChassisCurvatureDriveCommand.java b/evergreen_robots/SCRAWestCoastDrive/src/main/java/com/gos/scra/wcd/commands/ChassisCurvatureDriveCommand.java
-index 48a4569f3..d22528f09 100644
+index 48a4569f..d22528f0 100644
 --- a/evergreen_robots/SCRAWestCoastDrive/src/main/java/com/gos/scra/wcd/commands/ChassisCurvatureDriveCommand.java
 +++ b/evergreen_robots/SCRAWestCoastDrive/src/main/java/com/gos/scra/wcd/commands/ChassisCurvatureDriveCommand.java
 @@ -22,7 +22,7 @@ public class ChassisCurvatureDriveCommand extends Command {
@@ -178,7 +178,7 @@ index 48a4569f3..d22528f09 100644
  
      @Override
 diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
-index 34fbbf5fc..5dff84512 100644
+index 34fbbf5f..5dff8451 100644
 --- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
 +++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
 @@ -1,6 +1,9 @@
@@ -213,7 +213,7 @@ index 34fbbf5fc..5dff84512 100644
          return m_feedForward.getKs();
      }
 diff --git a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
-index 99ab6fe16..b9f9e379e 100644
+index 99ab6fe1..b9f9e379 100644
 --- a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
 +++ b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
 @@ -125,6 +125,7 @@ public class AprilTagCamera {
@@ -225,7 +225,7 @@ index 99ab6fe16..b9f9e379e 100644
          Matrix<N3, N1> estStdDevs = m_singleTagStddev;
          if (m_lastPipelineResult.isEmpty()) {
 diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
-index 31f689ee9..fa944c649 100644
+index 31f689ee..fa944c64 100644
 --- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
 +++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
 @@ -168,8 +168,8 @@ public class RevSwerveModule {
@@ -264,7 +264,7 @@ index 31f689ee9..fa944c649 100644
  
      }
 diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/FollowTrajectory.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/FollowTrajectory.java
-index 7fad85a27..279856b56 100644
+index 7fad85a2..279856b5 100644
 --- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/FollowTrajectory.java
 +++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/FollowTrajectory.java
 @@ -26,6 +26,8 @@ public class FollowTrajectory extends BaseRamseteCoordinateGuiCommand {
@@ -277,7 +277,7 @@ index 7fad85a27..279856b56 100644
          super(trajectory,
              new RamseteController(AutoConstants.RAMSETE_B, AutoConstants.RAMSETE_ZETA),
 diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/TurnToAngleProfiled.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/TurnToAngleProfiled.java
-index 6e2f1cad4..de572ee85 100644
+index 6e2f1cad..de572ee8 100644
 --- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/TurnToAngleProfiled.java
 +++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/commands/autonomous/TurnToAngleProfiled.java
 @@ -7,6 +7,7 @@ import edu.wpi.first.math.controller.ProfiledPIDController;
@@ -289,7 +289,7 @@ index 6e2f1cad4..de572ee85 100644
  
      private static final GosDoubleProperty AUTO_KP = new GosDoubleProperty(
 diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
-index 3777096bb..af3460bba 100644
+index 3777096b..af3460bb 100644
 --- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
 +++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
 @@ -143,7 +143,6 @@ public class Chassis extends SubsystemBase {
@@ -337,7 +337,7 @@ index 3777096bb..af3460bba 100644
      }
  
 diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
-index 90f40e004..1e9f51ac9 100644
+index 90f40e00..1e9f51ac 100644
 --- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
 +++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
 @@ -99,7 +99,7 @@ public class Shooter extends SubsystemBase {
@@ -350,7 +350,7 @@ index 90f40e004..1e9f51ac9 100644
          }
      }
 diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
-index 93147e94b..103183463 100644
+index 93147e94..10318346 100644
 --- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
 +++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/DrivetrainSubsystem.java
 @@ -25,6 +25,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -384,7 +384,7 @@ index 93147e94b..103183463 100644
  
      public Pose2d getPose() {
 diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
-index 7e347ef85..3b0da1e17 100644
+index 7e347ef8..3b0da1e1 100644
 --- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
 +++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
 @@ -83,11 +83,11 @@ public class ShooterSubsytem extends SubsystemBase {
@@ -402,7 +402,7 @@ index 7e347ef85..3b0da1e17 100644
                  1
              );
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/commands/autonomous/FollowTrajectory.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/commands/autonomous/FollowTrajectory.java
-index ecce9d9d0..48d809241 100644
+index ecce9d9d..48d80924 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/commands/autonomous/FollowTrajectory.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/commands/autonomous/FollowTrajectory.java
 @@ -18,6 +18,7 @@ public class FollowTrajectory extends BaseRamseteCoordinateGuiCommand {
@@ -414,7 +414,7 @@ index ecce9d9d0..48d809241 100644
          super(trajectory,
              new RamseteController(AutoConstants.RAMSETE_B, AutoConstants.RAMSETE_ZETA),
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
-index 6d437a18d..f0065febb 100644
+index 6d437a18..f0065feb 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
 @@ -26,6 +26,7 @@ import edu.wpi.first.math.geometry.Pose2d;
@@ -465,7 +465,7 @@ index 6d437a18d..f0065febb 100644
      }
  
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
-index 050c6f71c..f71688b81 100644
+index 050c6f71..f71688b8 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/CollectorSubsystem.java
 @@ -154,9 +154,9 @@ public class CollectorSubsystem extends SubsystemBase {
@@ -492,7 +492,7 @@ index 050c6f71c..f71688b81 100644
              m_leftGravityOffsetVoltage.setNumber(gravityOffsetLeft);
              m_rightGravityOffsetVoltage.setNumber(gravityOffsetRight);
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/HangerSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/HangerSubsystem.java
-index 4a46751f3..9b4f181a9 100644
+index 4a46751f..9b4f181a 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/HangerSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/HangerSubsystem.java
 @@ -66,11 +66,11 @@ public class HangerSubsystem extends SubsystemBase {
@@ -510,7 +510,7 @@ index 4a46751f3..9b4f181a9 100644
          }
      }
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
-index e3a962f28..42d8eab58 100644
+index e3a962f2..42d8eab5 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
 @@ -115,7 +115,7 @@ public class ShooterSubsystem extends SubsystemBase {
@@ -532,7 +532,7 @@ index e3a962f28..42d8eab58 100644
          }
  
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
-index 9bb301b2f..4e84efcdc 100644
+index 9bb301b2..4e84efcd 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
 @@ -35,6 +35,9 @@ import edu.wpi.first.math.util.Units;
@@ -591,7 +591,7 @@ index 9bb301b2f..4e84efcdc 100644
              m_pivotMotor.setVoltage(feedForwardVolts);
          }
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
-index 640a7fa0f..a2245576d 100644
+index 640a7fa0..a2245576 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
 @@ -33,6 +33,7 @@ import java.util.ArrayList;
@@ -615,7 +615,7 @@ index 640a7fa0f..a2245576d 100644
  
          NetworkTable loggingTable = NetworkTableInstance.getDefault().getTable("Chassis Subsystem");
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
-index 2ac41221d..c9a03a52c 100644
+index 2ac41221..c9a03a52 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
 @@ -34,6 +34,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -647,7 +647,7 @@ index 2ac41221d..c9a03a52c 100644
          steerVoltage += m_turnAnglePIDFFProperty.calculate(currentVelocity, goalVelocity).in(Volts);
  
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/ObjectDetection.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/ObjectDetection.java
-index c5cea6980..b196bd9c4 100644
+index c5cea698..b196bd9c 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/ObjectDetection.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/ObjectDetection.java
 @@ -83,8 +83,13 @@ public class ObjectDetection {
@@ -667,7 +667,7 @@ index c5cea6980..b196bd9c4 100644
              double distance = calculateDistanceToTarget(
                  ROBOT_TO_CAMERA.getZ(),
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
-index 89902dc47..c93abc47c 100644
+index 89902dc4..c93abc47 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
 @@ -30,6 +30,7 @@ import edu.wpi.first.math.geometry.Translation2d;
@@ -718,7 +718,7 @@ index 89902dc47..c93abc47c 100644
          else {
              stopArmMotor();
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ChassisSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ChassisSubsystem.java
-index 0ab67920d..f8964d0bf 100644
+index 0ab67920..f8964d0b 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ChassisSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ChassisSubsystem.java
 @@ -57,6 +57,8 @@ import org.snobotv2.module_wrappers.phoenix6.Pigeon2Wrapper;
@@ -740,5 +740,5 @@ index 0ab67920d..f8964d0bf 100644
          m_logging.addDouble("Angle Setpoint", m_turnAnglePIDVelocity::getSetpoint);
          m_logging.addBoolean("At Angle Setpoint", this::isAngleAtGoal);
 -- 
-2.38.1.windows.1
+2.34.1
 

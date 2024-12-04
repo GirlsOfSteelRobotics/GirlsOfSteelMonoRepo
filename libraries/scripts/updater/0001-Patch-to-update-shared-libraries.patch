@@ -1,4 +1,4 @@
-From 87ea2400cada76316aac97a3329ec50476b1b411 Mon Sep 17 00:00:00 2001
+From 8200bf63b348a6ea74dde72e04ac8fd3717a3770 Mon Sep 17 00:00:00 2001
 From: PJ Reiniger <pj.reiniger@gmail.com>
 Date: Wed, 13 Nov 2024 01:44:02 -0500
 Subject: [PATCH 1/3] Patch to update shared libraries
@@ -31,12 +31,12 @@ Subject: [PATCH 1/3] Patch to update shared libraries
  .../subsystems/HangerSubsystem.java           |   6 +-
  .../subsystems/IntakeSubsystem.java           |   4 +-
  .../subsystems/ShooterSubsystem.java          |  16 ++-
- .../subsystems/sysid/ArmPivotSysId.java       |  28 ++--
- .../subsystems/sysid/ShooterSysId.java        |  27 ++--
- 29 files changed, 347 insertions(+), 144 deletions(-)
+ .../subsystems/sysid/ArmPivotSysId.java       |  20 +--
+ .../subsystems/sysid/ShooterSysId.java        |  19 +--
+ 29 files changed, 343 insertions(+), 132 deletions(-)
 
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/Constants.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/Constants.java
-index 41255fac9..0d4e7a977 100644
+index 41255fac..0d4e7a97 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/Constants.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/Constants.java
 @@ -7,6 +7,7 @@ package com.gos.codelabs.pid;
@@ -90,7 +90,7 @@ index 41255fac9..0d4e7a977 100644
  
          private FlywheelSimConstants() {
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
-index 47cfa73db..934890720 100644
+index 47cfa73d..93489072 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ChassisSubsystem.java
 @@ -11,7 +11,7 @@ import com.revrobotics.spark.SparkBase.PersistMode;
@@ -134,7 +134,7 @@ index 47cfa73db..934890720 100644
  
      private PidProperty setupVelocityPidConstants(SparkClosedLoopController pidController) {
 diff --git a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
-index 82b360dcb..04ea5f15e 100644
+index 82b360dc..04ea5f15 100644
 --- a/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
 +++ b/codelabs/pid/src/main/java/com/gos/codelabs/pid/subsystems/ElevatorSubsystem.java
 @@ -5,11 +5,11 @@ import com.gos.lib.properties.GosDoubleProperty;
@@ -151,7 +151,7 @@ index 82b360dcb..04ea5f15e 100644
  import edu.wpi.first.wpilibj.DigitalInput;
  import edu.wpi.first.wpilibj.RobotBase;
 diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
-index 675b57def..34fbbf5fc 100644
+index 675b57de..34fbbf5f 100644
 --- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
 +++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ArmFeedForwardProperty.java
 @@ -17,50 +17,54 @@ public class ArmFeedForwardProperty extends BaseFeedForwardProperty {
@@ -218,7 +218,7 @@ index 675b57def..34fbbf5fc 100644
      }
  }
 diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/BUILD.bazel b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/BUILD.bazel
-index ff1e8c547..2ef99c5fd 100644
+index ff1e8c54..2ef99c5f 100644
 --- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/BUILD.bazel
 +++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/BUILD.bazel
 @@ -7,5 +7,6 @@ gos_java_library(
@@ -229,7 +229,7 @@ index ff1e8c547..2ef99c5fd 100644
      ],
  )
 diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ElevatorFeedForwardProperty.java b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ElevatorFeedForwardProperty.java
-index aac5e9f2d..ef026c978 100644
+index aac5e9f2..ef026c97 100644
 --- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ElevatorFeedForwardProperty.java
 +++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/ElevatorFeedForwardProperty.java
 @@ -17,50 +17,54 @@ public class ElevatorFeedForwardProperty extends BaseFeedForwardProperty {
@@ -296,7 +296,7 @@ index aac5e9f2d..ef026c978 100644
      }
  }
 diff --git a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/SimpleMotorFeedForwardProperty.java b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/SimpleMotorFeedForwardProperty.java
-index 430e597ce..bd6fde09d 100644
+index 430e597c..bd6fde09 100644
 --- a/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/SimpleMotorFeedForwardProperty.java
 +++ b/libraries/GirlsOfSteelLib/src/main/java/com/gos/lib/properties/feedforward/SimpleMotorFeedForwardProperty.java
 @@ -1,6 +1,11 @@
@@ -371,7 +371,7 @@ index 430e597ce..bd6fde09d 100644
  
  }
 diff --git a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
-index 057678fd3..7acc43198 100644
+index 057678fd..7acc4319 100644
 --- a/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
 +++ b/libraries/GirlsOfSteelLibPhotonVision/src/main/java/com/gos/lib/photonvision/AprilTagCamera.java
 @@ -63,7 +63,7 @@ public class AprilTagCamera {
@@ -410,7 +410,7 @@ index 057678fd3..7acc43198 100644
          m_logger.updateLogs();
      }
 diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/alerts/SparkMaxAlerts.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/alerts/SparkMaxAlerts.java
-index 7f5b0d92a..76ac16109 100644
+index 7f5b0d92..76ac1610 100644
 --- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/alerts/SparkMaxAlerts.java
 +++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/alerts/SparkMaxAlerts.java
 @@ -1,57 +1,131 @@
@@ -569,7 +569,7 @@ index 7f5b0d92a..76ac16109 100644
      }
  }
 diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/checklists/SparkMaxMotorsMoveChecklist.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/checklists/SparkMaxMotorsMoveChecklist.java
-index 4cfd21f4b..3c0a79174 100644
+index 4cfd21f4..3c0a7917 100644
 --- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/checklists/SparkMaxMotorsMoveChecklist.java
 +++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/checklists/SparkMaxMotorsMoveChecklist.java
 @@ -2,6 +2,7 @@ package com.gos.lib.rev.checklists;
@@ -599,7 +599,7 @@ index 4cfd21f4b..3c0a79174 100644
          m_encoder = motor.getEncoder();
          m_motor = motor;
 diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
-index 05057793d..76ac99d0b 100644
+index 05057793..76ac99d0 100644
 --- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
 +++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/properties/pid/RevPidPropertyBuilder.java
 @@ -2,51 +2,79 @@ package com.gos.lib.rev.properties.pid;
@@ -693,7 +693,7 @@ index 05057793d..76ac99d0b 100644
 +    }
  }
 diff --git a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
-index 9a3fbfdd5..2b8f34dbf 100644
+index 9a3fbfdd..2b8f34db 100644
 --- a/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
 +++ b/libraries/GirlsOfSteelLibRev/src/main/java/com/gos/lib/rev/swerve/RevSwerveModule.java
 @@ -8,6 +8,8 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
@@ -725,7 +725,7 @@ index 9a3fbfdd5..2b8f34dbf 100644
      }
  }
 diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
-index 724de785c..7a03f70f2 100644
+index 724de785..7a03f70f 100644
 --- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
 +++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Chassis.java
 @@ -12,6 +12,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
@@ -746,7 +746,7 @@ index 724de785c..7a03f70f2 100644
          m_leftProperties = new RevPidPropertyBuilder("Chassis", lockConstants, m_leftPidController, 0)
              .addP(kp)
 diff --git a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
-index 100dc936b..90f40e004 100644
+index 100dc936..90f40e00 100644
 --- a/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
 +++ b/old_robots/y2020/2020InfiniteRecharge/src/main/java/com/gos/infinite_recharge/subsystems/Shooter.java
 @@ -11,6 +11,9 @@ import com.revrobotics.spark.SparkBase.PersistMode;
@@ -785,7 +785,7 @@ index 100dc936b..90f40e004 100644
  
          m_isAtShooterSpeedEntry.setBoolean(isAtFullSpeed());
 diff --git a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
-index 133028c24..6c05f5701 100644
+index 133028c2..6c05f570 100644
 --- a/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
 +++ b/old_robots/y2022/MEPI/src/main/java/com/scra/mepi/rapid_react/subsystems/ShooterSubsytem.java
 @@ -18,7 +18,10 @@ import com.revrobotics.spark.config.SparkMaxConfig;
@@ -811,7 +811,7 @@ index 133028c24..6c05f5701 100644
                  new RevMotorControllerSimWrapper(m_shooterMotor),
                  RevEncoderSimWrapper.create(m_shooterMotor));
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/BUILD.bazel b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/BUILD.bazel
-index 12294775a..ed7d71fa0 100644
+index 12294775..ed7d71fa 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/BUILD.bazel
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/BUILD.bazel
 @@ -22,6 +22,7 @@ gos_java_library(
@@ -823,7 +823,7 @@ index 12294775a..ed7d71fa0 100644
          "@bzlmodrio-revlib//libraries/java/revlib-java",
          "@maven//:org_snobotv2_snobot_sim_java_base",
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
-index 426a3d3df..266ec88e8 100644
+index 426a3d3d..266ec88e 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ChassisSubsystem.java
 @@ -43,6 +43,7 @@ import org.snobotv2.module_wrappers.rev.RevEncoderSimWrapper;
@@ -857,7 +857,7 @@ index 426a3d3df..266ec88e8 100644
  
      public double getOdometryAngle() {
 diff --git a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
-index 2e78c4c70..8245a076d 100644
+index 2e78c4c7..8245a076 100644
 --- a/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
 +++ b/old_robots/y2022/RapidReact/src/main/java/com/gos/rapidreact/subsystems/ShooterSubsystem.java
 @@ -15,7 +15,10 @@ import com.revrobotics.spark.SparkBase.PersistMode;
@@ -892,7 +892,7 @@ index 2e78c4c70..8245a076d 100644
                  new RevMotorControllerSimWrapper(m_roller),
                  RevEncoderSimWrapper.create(m_roller));
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/BUILD.bazel b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/BUILD.bazel
-index e25600f3c..eb0d79245 100644
+index e25600f3..eb0d7924 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/BUILD.bazel
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/BUILD.bazel
 @@ -29,6 +29,7 @@ gos_java_robot(
@@ -904,7 +904,7 @@ index e25600f3c..eb0d79245 100644
          "@bzlmodrio-pathplannerlib//libraries/java/pathplannerlib-java",
          "@bzlmodrio-phoenix6//libraries/java/wpiapi-java",
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
-index e14cf51e6..1fe1215a1 100644
+index e14cf51e..1fe1215a 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ArmPivotSubsystem.java
 @@ -23,6 +23,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
@@ -927,7 +927,7 @@ index e14cf51e6..1fe1215a1 100644
  
      ////////////////
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
-index aa01c2be1..640a7fa0f 100644
+index aa01c2be..640a7fa0 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/BaseChassis.java
 @@ -32,6 +32,8 @@ import org.littletonrobotics.frc2023.FieldConstants;
@@ -955,7 +955,7 @@ index aa01c2be1..640a7fa0f 100644
  
      @Override
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ClawSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ClawSubsystem.java
-index 0bc5b9057..c4d60c70c 100644
+index 0bc5b905..c4d60c70 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ClawSubsystem.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/ClawSubsystem.java
 @@ -52,7 +52,11 @@ public class ClawSubsystem extends SubsystemBase {
@@ -972,7 +972,7 @@ index 0bc5b9057..c4d60c70c 100644
          m_networkTableEntries = new LoggingUtil("Claw Subsystem");
          m_networkTableEntries.addDouble("Current Amps", m_clawMotor::getOutputCurrent);
 diff --git a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
-index 4f712afdc..60f6e494e 100644
+index 4f712afd..60f6e494 100644
 --- a/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
 +++ b/old_robots/y2023/ChargedUp/src/main/java/com/gos/chargedup/subsystems/TankDriveChassisSubsystem.java
 @@ -34,6 +34,7 @@ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
@@ -1035,7 +1035,7 @@ index 4f712afdc..60f6e494e 100644
      }
  
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
-index 57d159d4d..03a3162dd 100644
+index 57d159d4..03a3162d 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ArmPivotSubsystem.java
 @@ -12,6 +12,7 @@ import com.gos.lib.rev.alerts.SparkMaxAlerts;
@@ -1060,7 +1060,7 @@ index 57d159d4d..03a3162dd 100644
  
      /////////////////////////////////////
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
-index 9eb245da7..139c1e0fe 100644
+index 9eb245da..139c1e0f 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/HangerSubsystem.java
 @@ -190,8 +190,10 @@ public class HangerSubsystem extends SubsystemBase {
@@ -1077,7 +1077,7 @@ index 9eb245da7..139c1e0fe 100644
  
      /////////////////////////////////////
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/IntakeSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/IntakeSubsystem.java
-index d3c196114..d692803a2 100644
+index d3c19611..d692803a 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/IntakeSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/IntakeSubsystem.java
 @@ -77,7 +77,9 @@ public class IntakeSubsystem extends SubsystemBase {
@@ -1092,7 +1092,7 @@ index d3c196114..d692803a2 100644
  
      /////////////////////////////////////
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
-index 27ef8f790..3488d8ee4 100644
+index 27ef8f79..3488d8ee 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/ShooterSubsystem.java
 @@ -7,12 +7,19 @@ import com.gos.lib.properties.pid.PidProperty;
@@ -1132,28 +1132,23 @@ index 27ef8f790..3488d8ee4 100644
  
      }
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ArmPivotSysId.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ArmPivotSysId.java
-index 49a53f295..6d4b26a1d 100644
+index 87c7c059..6d4b26a1 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ArmPivotSysId.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ArmPivotSysId.java
-@@ -1,41 +1,41 @@
+@@ -1,32 +1,36 @@
  package com.gos.crescendo2024.subsystems.sysid;
  
  import com.gos.crescendo2024.subsystems.ArmPivotSubsystem;
--import edu.wpi.first.units.Angle;
--import edu.wpi.first.units.Measure;
--import edu.wpi.first.units.MutableMeasure;
--import edu.wpi.first.units.Units;
--import edu.wpi.first.units.Velocity;
--import edu.wpi.first.units.Voltage;
+-import edu.wpi.first.units.measure.Units;
 +import edu.wpi.first.units.measure.MutAngle;
 +import edu.wpi.first.units.measure.MutAngularVelocity;
 +import edu.wpi.first.units.measure.MutVoltage;
-+import edu.wpi.first.units.measure.Voltage;
+ import edu.wpi.first.units.measure.Voltage;
  import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
  import edu.wpi.first.wpilibj2.command.Command;
  import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
  
--import static edu.wpi.first.units.MutableMeasure.mutable;
+-import static edu.wpi.first.units.measure.MutableMeasure.mutable;
  import static edu.wpi.first.units.Units.Degrees;
  import static edu.wpi.first.units.Units.DegreesPerSecond;
 +import static edu.wpi.first.units.Units.Second;
@@ -1164,9 +1159,9 @@ index 49a53f295..6d4b26a1d 100644
      private final SysIdRoutine m_routine;
      private final ArmPivotSubsystem m_armPivot;
  
--    private final MutableMeasure<Voltage> m_appliedVoltage = mutable(Volts.of(0));
--    private final MutableMeasure<Angle> m_angle = mutable(Degrees.of(0));
--    private final MutableMeasure<Velocity<Angle>> m_velocity = mutable(DegreesPerSecond.of(0));
+-    private final MutableVoltage m_appliedVoltage = mutable(Volts.of(0));
+-    private final MutableAngle m_angle = mutable(Degrees.of(0));
+-    private final MutableAngularVelocity m_velocity = mutable(DegreesPerSecond.of(0));
 +
 +    private final MutVoltage m_appliedVoltage = Volts.mutable(0);
 +    private final MutAngle m_angle = Degrees.mutable(0);
@@ -1185,35 +1180,24 @@ index 49a53f295..6d4b26a1d 100644
              new SysIdRoutine.Mechanism(this::setVoltage, this::logMotors, armPivot)
          );
      }
- 
--    private void setVoltage(Measure<Voltage> volts) {
-+    private void setVoltage(Voltage volts) {
-         m_armPivot.setVoltage(volts.in(Volts));
-     }
- 
 diff --git a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ShooterSysId.java b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ShooterSysId.java
-index 3cbf62749..0bcb94e0c 100644
+index 262529d7..0bcb94e0 100644
 --- a/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ShooterSysId.java
 +++ b/y2024/Crescendo/src/main/java/com/gos/crescendo2024/subsystems/sysid/ShooterSysId.java
-@@ -1,41 +1,40 @@
+@@ -1,32 +1,35 @@
  package com.gos.crescendo2024.subsystems.sysid;
  
  import com.gos.crescendo2024.subsystems.ShooterSubsystem;
--import edu.wpi.first.units.Angle;
--import edu.wpi.first.units.Measure;
--import edu.wpi.first.units.MutableMeasure;
--import edu.wpi.first.units.Units;
--import edu.wpi.first.units.Velocity;
--import edu.wpi.first.units.Voltage;
+-import edu.wpi.first.units.measure.Units;
 +import edu.wpi.first.units.measure.MutAngle;
 +import edu.wpi.first.units.measure.MutAngularVelocity;
 +import edu.wpi.first.units.measure.MutVoltage;
-+import edu.wpi.first.units.measure.Voltage;
+ import edu.wpi.first.units.measure.Voltage;
  import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
  import edu.wpi.first.wpilibj2.command.Command;
  import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
  
--import static edu.wpi.first.units.MutableMeasure.mutable;
+-import static edu.wpi.first.units.measure.MutableMeasure.mutable;
  import static edu.wpi.first.units.Units.Rotations;
  import static edu.wpi.first.units.Units.RotationsPerSecond;
 +import static edu.wpi.first.units.Units.Second;
@@ -1224,9 +1208,9 @@ index 3cbf62749..0bcb94e0c 100644
      private final SysIdRoutine m_routine;
      private final ShooterSubsystem m_shooter;
  
--    private final MutableMeasure<Voltage> m_appliedVoltage = mutable(Volts.of(0));
--    private final MutableMeasure<Angle> m_rotations = mutable(Rotations.of(0));
--    private final MutableMeasure<Velocity<Angle>> m_velocity = mutable(RotationsPerSecond.of(0));
+-    private final MutableVoltage m_appliedVoltage = mutable(Volts.of(0));
+-    private final MutableAngle m_rotations = mutable(Rotations.of(0));
+-    private final MutableAngularVelocity m_velocity = mutable(RotationsPerSecond.of(0));
 +    private final MutVoltage m_appliedVoltage = Volts.mutable(0);
 +    private final MutAngle m_rotations = Rotations.mutable(0);
 +    private final MutAngularVelocity m_velocity = RotationsPerSecond.mutable(0);
@@ -1244,12 +1228,6 @@ index 3cbf62749..0bcb94e0c 100644
              new SysIdRoutine.Mechanism(this::setVoltage, this::logMotors, shooter)
          );
      }
- 
--    private void setVoltage(Measure<Voltage> volts) {
-+    private void setVoltage(Voltage volts) {
-         m_shooter.setVoltage(volts.in(Volts));
-     }
- 
 -- 
-2.38.1.windows.1
+2.34.1
 
