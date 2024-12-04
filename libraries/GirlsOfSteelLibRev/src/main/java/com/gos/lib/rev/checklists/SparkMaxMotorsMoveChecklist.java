@@ -1,7 +1,6 @@
 package com.gos.lib.rev.checklists;
 
 
-import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;

@@ -1,6 +1,6 @@
 package com.gos.lib.rev.swerve;
 
-import com.revrobotics.CANSparkBase.IdleMode;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import edu.wpi.first.math.util.Units;
 
 @SuppressWarnings("PMD.DataClass")

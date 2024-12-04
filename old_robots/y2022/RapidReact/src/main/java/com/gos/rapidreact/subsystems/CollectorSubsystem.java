@@ -5,12 +5,15 @@ import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.gos.rapidreact.Constants;
 import com.revrobotics.AbsoluteEncoder;
-import com.revrobotics.CANSparkBase.ControlType;
-import com.revrobotics.CANSparkBase.IdleMode;
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SimableCANSparkMax;
-import com.revrobotics.SparkPIDController;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.SparkClosedLoopController;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTable;
@@ -48,9 +51,9 @@ public class CollectorSubsystem extends SubsystemBase {
     //private static final double PIVOT_KV = 0.12495;
     //private static final double PIVOT_KA = 0.0051913;
 
-    private final SimableCANSparkMax m_roller;
-    private final SimableCANSparkMax m_pivotLeft;
-    private final SimableCANSparkMax m_pivotRight;
+    private final SparkMax m_roller;
+    private final SparkMax m_pivotLeft;
+    private final SparkMax m_pivotRight;
 
     private final DigitalInput m_indexSensor;
 
@@ -61,10 +64,10 @@ public class CollectorSubsystem extends SubsystemBase {
     private final AbsoluteEncoder m_pivotExternalEncoderRight;
 
     private final PidProperty m_pivotPIDLeft;
-    private final SparkPIDController m_pidControllerLeft;
+    private final SparkClosedLoopController m_pidControllerLeft;
 
     private final PidProperty m_pivotPIDRight;
-    private final SparkPIDController m_pidControllerRight;
+    private final SparkClosedLoopController m_pidControllerRight;
 
     private SingleJointedArmSimWrapper m_leftSimulator;
     private SingleJointedArmSimWrapper m_rightSimulator;
@@ -87,39 +90,39 @@ public class CollectorSubsystem extends SubsystemBase {
     private final NetworkTableEntry m_rightGravityOffsetVoltage;
 
     public CollectorSubsystem() {
-        m_roller = new SimableCANSparkMax(Constants.COLLECTOR_ROLLER, MotorType.kBrushless);
-        m_roller.restoreFactoryDefaults();
-        m_roller.setIdleMode(IdleMode.kCoast);
+        m_roller = new SparkMax(Constants.COLLECTOR_ROLLER, MotorType.kBrushless);
+        SparkMaxConfig rollerConfig = new SparkMaxConfig();
+        rollerConfig.idleMode(IdleMode.kCoast);
 
-        m_pivotLeft = new SimableCANSparkMax(Constants.COLLECTOR_PIVOT_LEFT, MotorType.kBrushless);
-        m_pivotLeft.restoreFactoryDefaults();
-        m_pivotLeft.setIdleMode(IdleMode.kBrake);
+        m_pivotLeft = new SparkMax(Constants.COLLECTOR_PIVOT_LEFT, MotorType.kBrushless);
+        SparkMaxConfig pivotLeftConfig = new SparkMaxConfig();
+        pivotLeftConfig.idleMode(IdleMode.kBrake);
         m_pivotLeft.setInverted(true);
 
-        m_pivotRight = new SimableCANSparkMax(Constants.COLLECTOR_PIVOT_RIGHT, MotorType.kBrushless);
-        m_pivotRight.restoreFactoryDefaults();
-        m_pivotRight.setIdleMode(IdleMode.kBrake);
+        m_pivotRight = new SparkMax(Constants.COLLECTOR_PIVOT_RIGHT, MotorType.kBrushless);
+        SparkMaxConfig pivotRightConfig = new SparkMaxConfig();
+        pivotRightConfig.idleMode(IdleMode.kBrake);
 
         m_pivotNeoEncoderLeft = m_pivotLeft.getEncoder();
-        m_pivotNeoEncoderLeft.setPositionConversionFactor(360.0 / GEARING);
-        m_pivotNeoEncoderLeft.setVelocityConversionFactor(360.0 / GEARING / 60.0);
+        pivotLeftConfig.encoder.positionConversionFactor(360.0 / GEARING);
+        pivotLeftConfig.encoder.velocityConversionFactor(360.0 / GEARING / 60.0);
 
         m_pivotNeoEncoderRight = m_pivotRight.getEncoder();
-        m_pivotNeoEncoderRight.setPositionConversionFactor(360.0 / GEARING);
-        m_pivotNeoEncoderRight.setVelocityConversionFactor(360.0 / GEARING / 60.0);
+        pivotRightConfig.encoder.positionConversionFactor(360.0 / GEARING);
+        pivotRightConfig.encoder.velocityConversionFactor(360.0 / GEARING / 60.0);
 
         m_pivotExternalEncoderLeft = m_pivotLeft.getAbsoluteEncoder();
-        m_pivotExternalEncoderLeft.setPositionConversionFactor(360.0);
-        m_pivotExternalEncoderLeft.setVelocityConversionFactor(360.0 / 60.0);
+        pivotLeftConfig.alternateEncoder.positionConversionFactor(360.0);
+        pivotLeftConfig.alternateEncoder.velocityConversionFactor(360.0 / 60.0);
 
         m_pivotExternalEncoderRight = m_pivotRight.getAbsoluteEncoder();
-        m_pivotExternalEncoderRight.setVelocityConversionFactor(360.0);
-        m_pivotExternalEncoderRight.setVelocityConversionFactor(360.0 / 60.0);
+        pivotRightConfig.alternateEncoder.velocityConversionFactor(360.0);
+        pivotRightConfig.alternateEncoder.velocityConversionFactor(360.0 / 60.0);
 
         m_indexSensor = new DigitalInput(Constants.INTAKE_INDEX_SENSOR);
 
-        m_pidControllerLeft = m_pivotLeft.getPIDController();
-        m_pidControllerRight = m_pivotRight.getPIDController();
+        m_pidControllerLeft = m_pivotLeft.getClosedLoopController();
+        m_pidControllerRight = m_pivotRight.getClosedLoopController();
 
         m_lowerLimitSwitch = new DigitalInput(Constants.INTAKE_LOWER_LIMIT_SWITCH);
         m_upperLimitSwitch = new DigitalInput(Constants.INTAKE_UPPER_LIMIT_SWITCH);
@@ -129,9 +132,9 @@ public class CollectorSubsystem extends SubsystemBase {
 
         resetPivotEncoder();
 
-        m_roller.burnFlash();
-        m_pivotLeft.burnFlash();
-        m_pivotRight.burnFlash();
+        m_roller.configure(rollerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_pivotLeft.configure(pivotLeftConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_pivotRight.configure(pivotRightConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         NetworkTable loggingTable = NetworkTableInstance.getDefault().getTable("CollectorSubsystem");
         m_leftIntakeAngleNeoEncoderEntry = loggingTable.getEntry("Left Intake Neo (deg)");
@@ -157,7 +160,7 @@ public class CollectorSubsystem extends SubsystemBase {
         }
     }
 
-    private PidProperty setupPidValues(SparkPIDController pidController) {
+    private PidProperty setupPidValues(SparkClosedLoopController pidController) {
         return new RevPidPropertyBuilder("Collector", false, pidController, 0)
             .addP(0) //0.20201
             .addI(0)

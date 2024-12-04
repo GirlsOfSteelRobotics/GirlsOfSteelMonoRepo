@@ -1,9 +1,9 @@
 package com.gos.codelabs.basic_simulator.subsystems;
 
 import com.gos.codelabs.basic_simulator.Constants;
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SimableCANSparkMax;
+import com.revrobotics.spark.SparkMax;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -32,7 +32,7 @@ public class ElevatorSubsystem extends SubsystemBase implements AutoCloseable {
     }
 
 
-    private final SimableCANSparkMax m_liftMotor;
+    private final SparkMax m_liftMotor;
     private final RelativeEncoder m_liftEncoder;
     private final DigitalInput m_lowerLimitSwitch;
     private final DigitalInput m_upperLimitSwitch;
@@ -49,7 +49,7 @@ public class ElevatorSubsystem extends SubsystemBase implements AutoCloseable {
     }
 
     public ElevatorSubsystem() {
-        m_liftMotor = new SimableCANSparkMax(Constants.CAN_LIFT_MOTOR, MotorType.kBrushless);
+        m_liftMotor = new SparkMax(Constants.CAN_LIFT_MOTOR, MotorType.kBrushless);
         m_liftEncoder = m_liftMotor.getEncoder();
 
         m_lowerLimitSwitch = new DigitalInput(Constants.DIO_LIFT_LOWER_LIMIT);

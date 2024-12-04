@@ -3,10 +3,13 @@ package com.gos.infinite_recharge.subsystems;
 import com.gos.infinite_recharge.Constants;
 import com.gos.lib.properties.GosDoubleProperty;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.CANSparkBase.ControlType;
-import com.revrobotics.SparkPIDController;
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.SimableCANSparkMax;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -32,10 +35,10 @@ public class Shooter extends SubsystemBase {
     private static final double ALLOWABLE_ERROR_PERCENT = 1;
 
 
-    private final SimableCANSparkMax m_master;
-    private final SimableCANSparkMax m_follower;
+    private final SparkMax m_master;
+    private final SparkMax m_follower;
     private final RelativeEncoder m_encoder;
-    private final SparkPIDController m_pidController;
+    private final SparkClosedLoopController m_pidController;
 
     private final Limelight m_limelight;
 
@@ -51,13 +54,13 @@ public class Shooter extends SubsystemBase {
     private ISimWrapper m_simulator;
 
     public Shooter(ShuffleboardTab driveDisplayTab, Limelight limelight) {
-        m_master = new SimableCANSparkMax(Constants.SHOOTER_SPARK_A, MotorType.kBrushed);
-        m_follower = new SimableCANSparkMax(Constants.SHOOTER_SPARK_B, MotorType.kBrushed);
+        m_master = new SparkMax(Constants.SHOOTER_SPARK_A, MotorType.kBrushed);
+        m_follower = new SparkMax(Constants.SHOOTER_SPARK_B, MotorType.kBrushed);
         m_encoder  = m_master.getEncoder();
-        m_pidController = m_master.getPIDController();
+        m_pidController = m_master.getClosedLoopController();
 
-        m_master.restoreFactoryDefaults();
-        m_follower.restoreFactoryDefaults();
+        SparkMaxConfig masterConfig = new SparkMaxConfig();
+        SparkMaxConfig followerConfig = new SparkMaxConfig();
 
         m_dashboardKp = new GosDoubleProperty(false, "shooter_kp", SHOOTER_KP);
         m_dashboardKff = new GosDoubleProperty(false, "shooter_kff", SHOOTER_KFF);
@@ -65,18 +68,18 @@ public class Shooter extends SubsystemBase {
         m_limelight = limelight;
 
 
-        m_encoder.setInverted(true);
+        masterConfig.encoder.inverted(true);
 
-        m_master.setSmartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
+        masterConfig.smartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
         m_master.setInverted(false);
-        m_follower.follow(m_master, true);
+        followerConfig.follow(m_master, true);
 
-        m_pidController.setP(SHOOTER_KP);
-        m_pidController.setFF(SHOOTER_KFF);
-        m_pidController.setD(SHOOTER_KD);
+        masterConfig.closedLoop.p(SHOOTER_KP);
+        masterConfig.closedLoop.velocityFF(SHOOTER_KFF);
+        masterConfig.closedLoop.d(SHOOTER_KD);
 
-        m_master.burnFlash();
-        m_follower.burnFlash();
+        m_master.configure(masterConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_follower.configure(followerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         m_customNetworkTable = NetworkTableInstance.getDefault().getTable("SuperStructure/Shooter");
         NetworkTableInstance.getDefault().getTable("SuperStructure").getEntry(".type").setString("SuperStructure");
@@ -116,8 +119,8 @@ public class Shooter extends SubsystemBase {
         m_customNetworkTable.getEntry("Current RPM").setDouble(rpm);
         m_customNetworkTable.getEntry("Goal RPM").setDouble(m_goalRPM);
 
-        m_pidController.setP(m_dashboardKp.getValue());
-        m_pidController.setFF(m_dashboardKff.getValue());
+        masterConfig.closedLoop.p(m_dashboardKp.getValue());
+        masterConfig.closedLoop.velocityFF(m_dashboardKff.getValue());
         // System.out.println("kp: " + m_dashboardKp.getValue() + ", " + m_dashboardKff.getValue() + " goal: " + m_goalRPM + "== " + rpm);
 
         m_isAtShooterSpeedEntry.setBoolean(isAtFullSpeed());

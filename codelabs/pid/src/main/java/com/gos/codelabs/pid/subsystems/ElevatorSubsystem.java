@@ -4,12 +4,12 @@ import com.gos.codelabs.pid.Constants;
 import com.gos.lib.properties.GosDoubleProperty;
 import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
-import com.revrobotics.CANSparkBase.ControlType;
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SimableCANSparkMax;
-import com.revrobotics.SparkPIDController;
-import com.revrobotics.SparkPIDController.ArbFFUnits;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.SparkClosedLoopController.ArbFFUnits;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.RobotBase;
@@ -37,20 +37,20 @@ public class ElevatorSubsystem extends SubsystemBase {
     }
 
 
-    private final SimableCANSparkMax m_liftMotor;
+    private final SparkMax m_liftMotor;
     private final RelativeEncoder m_liftEncoder;
     private final DigitalInput m_lowerLimitSwitch;
     private final DigitalInput m_upperLimitSwitch;
-    private final SparkPIDController m_pidController;
+    private final SparkClosedLoopController m_pidController;
     private final PidProperty m_pidProperty;
     private double m_desiredHeight;
 
     private ISimWrapper m_elevatorSim;
 
     public ElevatorSubsystem() {
-        m_liftMotor = new SimableCANSparkMax(Constants.CAN_LIFT_MOTOR, MotorType.kBrushless);
+        m_liftMotor = new SparkMax(Constants.CAN_LIFT_MOTOR, MotorType.kBrushless);
         m_liftEncoder = m_liftMotor.getEncoder();
-        m_pidController = m_liftMotor.getPIDController();
+        m_pidController = m_liftMotor.getClosedLoopController();
 
         m_lowerLimitSwitch = new DigitalInput(Constants.DIO_LIFT_LOWER_LIMIT);
         m_upperLimitSwitch = new DigitalInput(Constants.DIO_LIFT_UPPER_LIMIT);

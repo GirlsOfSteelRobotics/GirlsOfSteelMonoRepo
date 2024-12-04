@@ -7,10 +7,13 @@ import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.kauailabs.navx.frc.AHRS;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.CANSparkBase.ControlType;
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.SimableCANSparkMax;
-import com.revrobotics.CANSparkBase.IdleMode;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 
@@ -35,7 +38,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.math.numbers.N2;
 
-import com.revrobotics.SparkPIDController;
+import com.revrobotics.spark.SparkClosedLoopController;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,17 +51,17 @@ public class Chassis extends SubsystemBase {
     private static final double GEAR_RATIO = 40.0 / 10.0 * 34.0 / 20.0;
     private static final double ENCODER_CONSTANT = (1.0 / GEAR_RATIO) * WHEEL_DIAMETER * Math.PI;
 
-    private final SimableCANSparkMax m_masterLeft;
-    private final SimableCANSparkMax m_followerLeft; // NOPMD
+    private final SparkMax m_masterLeft;
+    private final SparkMax m_followerLeft; // NOPMD
 
-    private final SimableCANSparkMax m_masterRight;
-    private final SimableCANSparkMax m_followerRight; // NOPMD
+    private final SparkMax m_masterRight;
+    private final SparkMax m_followerRight; // NOPMD
 
     private final RelativeEncoder m_rightEncoder;
     private final RelativeEncoder m_leftEncoder;
 
-    private final SparkPIDController m_leftPidController;
-    private final SparkPIDController m_rightPidController;
+    private final SparkClosedLoopController m_leftPidController;
+    private final SparkClosedLoopController m_rightPidController;
 
     private final AHRS m_gyro;
 
@@ -77,51 +80,51 @@ public class Chassis extends SubsystemBase {
 
     @SuppressWarnings({"PMD.NcssCount", "PMD.ExcessiveMethodLength"})
     public Chassis() {
-        m_masterLeft = new SimableCANSparkMax(Constants.DRIVE_LEFT_MASTER_SPARK, MotorType.kBrushless);
-        m_followerLeft = new SimableCANSparkMax(Constants.DRIVE_LEFT_FOLLOWER_SPARK, MotorType.kBrushless);
-        m_masterRight = new SimableCANSparkMax(Constants.DRIVE_RIGHT_MASTER_SPARK, MotorType.kBrushless);
-        m_followerRight = new SimableCANSparkMax(Constants.DRIVE_RIGHT_FOLLOWER_SPARK, MotorType.kBrushless);
+        m_masterLeft = new SparkMax(Constants.DRIVE_LEFT_MASTER_SPARK, MotorType.kBrushless);
+        m_followerLeft = new SparkMax(Constants.DRIVE_LEFT_FOLLOWER_SPARK, MotorType.kBrushless);
+        m_masterRight = new SparkMax(Constants.DRIVE_RIGHT_MASTER_SPARK, MotorType.kBrushless);
+        m_followerRight = new SparkMax(Constants.DRIVE_RIGHT_FOLLOWER_SPARK, MotorType.kBrushless);
 
-        m_masterLeft.restoreFactoryDefaults();
-        m_followerLeft.restoreFactoryDefaults();
-        m_masterRight.restoreFactoryDefaults();
-        m_followerRight.restoreFactoryDefaults();
+        SparkMaxConfig masterLeftConfig = new SparkMaxConfig();
+        SparkMaxConfig followerLeftConfig = new SparkMaxConfig();
+        SparkMaxConfig masterRightConfig = new SparkMaxConfig();
+        SparkMaxConfig followerRightConfig = new SparkMaxConfig();
 
         m_rightEncoder = m_masterRight.getEncoder();
         m_leftEncoder = m_masterLeft.getEncoder();
 
-        m_leftPidController = m_masterLeft.getPIDController();
-        m_rightPidController = m_masterRight.getPIDController();
+        m_leftPidController = m_masterLeft.getClosedLoopController();
+        m_rightPidController = m_masterRight.getClosedLoopController();
 
         m_leftEncoder.setPosition(0);
         m_rightEncoder.setPosition(0);
 
-        m_leftEncoder.setPositionConversionFactor(ENCODER_CONSTANT);
-        m_rightEncoder.setPositionConversionFactor(ENCODER_CONSTANT);
+        masterLeftConfig.encoder.positionConversionFactor(ENCODER_CONSTANT);
+        masterRightConfig.encoder.positionConversionFactor(ENCODER_CONSTANT);
 
-        m_leftEncoder.setVelocityConversionFactor(ENCODER_CONSTANT / 60.0);
-        m_rightEncoder.setVelocityConversionFactor(ENCODER_CONSTANT / 60.0);
+        masterLeftConfig.encoder.velocityConversionFactor(ENCODER_CONSTANT / 60.0);
+        masterRightConfig.encoder.velocityConversionFactor(ENCODER_CONSTANT / 60.0);
 
         m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(0), 0, 0);
 
         m_gyro = new AHRS();
 
         IdleMode idleMode = IdleMode.kCoast;
-        m_masterLeft.setIdleMode(idleMode);
-        m_followerLeft.setIdleMode(idleMode);
-        m_masterRight.setIdleMode(idleMode);
-        m_followerRight.setIdleMode(idleMode);
+        masterLeftConfig.idleMode(idleMode);
+        followerLeftConfig.idleMode(idleMode);
+        masterRightConfig.idleMode(idleMode);
+        followerRightConfig.idleMode(idleMode);
 
         m_masterLeft.setInverted(false);
         m_masterRight.setInverted(true);
 
-        m_followerLeft.follow(m_masterLeft, false);
-        m_followerRight.follow(m_masterRight, false);
+        followerLeftConfig.follow(m_masterLeft, false);
+        followerRightConfig.follow(m_masterRight, false);
 
-        m_masterLeft.setSmartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
-        m_followerLeft.setSmartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
-        m_masterRight.setSmartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
-        m_followerRight.setSmartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
+        masterLeftConfig.smartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
+        followerLeftConfig.smartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
+        masterRightConfig.smartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
+        followerRightConfig.smartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
 
         // m_masterLeft.setOpenLoopRampRate(FULL_THROTTLE_SECONDS);
         // m_masterRight.setOpenLoopRampRate(FULL_THROTTLE_SECONDS);
@@ -164,21 +167,21 @@ public class Chassis extends SubsystemBase {
             .addMaxAcceleration(maxAcc)
             .build();
 
-        m_leftPidController.setOutputRange(kMinOutput, kMaxOutput);
-        m_rightPidController.setOutputRange(kMinOutput, kMaxOutput);
-        m_leftPidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
-        m_rightPidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+        masterLeftConfig.closedLoop.outputRange(kMinOutput, kMaxOutput);
+        masterRightConfig.closedLoop.outputRange(kMinOutput, kMaxOutput);
+        masterLeftConfig.closedLoop.smartMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
+        masterRightConfig.closedLoop.smartMotion.allowedClosedLoopError(allowedErr, smartMotionSlot);
 
-        m_leftPidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-        m_rightPidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
+        masterLeftConfig.closedLoop.smartMotion.minOutputVelocity(minVel, smartMotionSlot);
+        masterRightConfig.closedLoop.smartMotion.minOutputVelocity(minVel, smartMotionSlot);
 
         m_leftProperties.updateIfChanged(true);
         m_rightProperties.updateIfChanged(true);
 
-        m_masterLeft.burnFlash();
-        m_followerLeft.burnFlash();
-        m_masterRight.burnFlash();
-        m_followerRight.burnFlash();
+        m_masterLeft.configure(masterLeftConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_followerLeft.configure(followerLeftConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_masterRight.configure(masterRightConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_followerRight.configure(followerRightConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         m_drive.setSafetyEnabled(false);
 

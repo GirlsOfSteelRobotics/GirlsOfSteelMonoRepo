@@ -1,15 +1,15 @@
 package com.gos.lib.rev.alerts;
 
-import com.revrobotics.CANSparkBase;
+import com.revrobotics.spark.SparkBase;
 import org.littletonrobotics.frc2023.util.Alert;
 
 public class SparkMaxAlerts {
-    public final CANSparkBase m_sparkMax;
+    public final SparkBase m_sparkMax;
     public final String m_motorString;
     public final Alert m_alert;
     public final Alert m_alertSticky;
 
-    public SparkMaxAlerts(CANSparkBase sparkMax, String motor) {
+    public SparkMaxAlerts(SparkBase sparkMax, String motor) {
         m_sparkMax = sparkMax;
         m_motorString = motor;
         m_alert = new Alert(m_motorString, Alert.AlertType.ERROR);
@@ -25,7 +25,7 @@ public class SparkMaxAlerts {
         short bitmask = m_sparkMax.getFaults();
 
         StringBuilder errorBuilder = new StringBuilder(m_motorString);
-        for (CANSparkBase.FaultID faultId : CANSparkBase.FaultID.values()) {
+        for (SparkBase.FaultID faultId : SparkBase.FaultID.values()) {
             if ((bitmask & (1 << faultId.value)) != 0) {
                 errorBuilder.append('\n').append(faultId);
             }
@@ -41,7 +41,7 @@ public class SparkMaxAlerts {
         short bitmask = m_sparkMax.getStickyFaults();
 
         StringBuilder errorBuilder = new StringBuilder(m_motorString);
-        for (CANSparkBase.FaultID faultId : CANSparkBase.FaultID.values()) {
+        for (SparkBase.FaultID faultId : SparkBase.FaultID.values()) {
             if ((bitmask & (1 << faultId.value)) != 0) {
                 errorBuilder.append('\n').append(faultId);
             }

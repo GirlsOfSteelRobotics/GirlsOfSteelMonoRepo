@@ -6,12 +6,12 @@ import com.gos.lib.properties.GosDoubleProperty;
 import com.gos.lib.properties.pid.PidProperty;
 import com.gos.lib.rev.alerts.SparkMaxAlerts;
 import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
-import com.revrobotics.CANSparkBase.ControlType;
-import com.revrobotics.CANSparkBase.IdleMode;
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SimableCANSparkFlex;
-import com.revrobotics.SparkPIDController;
+import com.revrobotics.spark.SparkFlex;
+import com.revrobotics.spark.SparkClosedLoopController;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.RobotBase;
@@ -34,12 +34,12 @@ public class ShooterSubsystem extends SubsystemBase {
     private static final double ALLOWABLE_ERROR = 125;
 
 
-    private final SimableCANSparkFlex m_shooterMotorLeader;
-    private final SimableCANSparkFlex m_shooterMotorFollower;
+    private final SparkFlex m_shooterMotorLeader;
+    private final SparkFlex m_shooterMotorFollower;
     private final SparkMaxAlerts m_shooterMotorErrorAlerts;
     private final SparkMaxAlerts m_shooterFollowerErrorAlerts;
     private final RelativeEncoder m_shooterEncoder;
-    private final SparkPIDController m_pidController;
+    private final SparkClosedLoopController m_pidController;
     private final PidProperty m_pidProperties;
     private final LoggingUtil m_networkTableEntries;
     private ISimWrapper m_shooterSimulator;
@@ -47,12 +47,12 @@ public class ShooterSubsystem extends SubsystemBase {
     private final DigitalInput m_photoelectricSensor;
 
     public ShooterSubsystem() {
-        m_shooterMotorLeader = new SimableCANSparkFlex(Constants.SHOOTER_MOTOR_LEADER, MotorType.kBrushless);
-        m_shooterMotorLeader.restoreFactoryDefaults();
+        m_shooterMotorLeader = new SparkFlex(Constants.SHOOTER_MOTOR_LEADER, MotorType.kBrushless);
+        SparkMaxConfig shooterMotorLeaderConfig = new SparkMaxConfig();
         m_shooterMotorLeader.setInverted(true);
         m_shooterEncoder = m_shooterMotorLeader.getEncoder();
-        m_pidController = m_shooterMotorLeader.getPIDController();
-        m_pidController.setFeedbackDevice(m_shooterEncoder);
+        m_pidController = m_shooterMotorLeader.getClosedLoopController();
+        shooterMotorLeaderConfig.closedLoop.feedbackSensor(ClosedLoopConfig.FeedbackSensor.kPrimaryEncoder);
         m_pidProperties = new RevPidPropertyBuilder("Shooter", Constants.DEFAULT_CONSTANT_PROPERTIES, m_pidController, 0)
             .addP(1.5e-4)
             .addI(0.0)
@@ -60,17 +60,17 @@ public class ShooterSubsystem extends SubsystemBase {
             .addFF(0.000185)
             .build();
 
-        m_shooterMotorLeader.setIdleMode(IdleMode.kCoast);
-        m_shooterMotorLeader.setSmartCurrentLimit(60);
-        m_shooterMotorLeader.enableVoltageCompensation(10);
-        m_shooterMotorLeader.burnFlash();
+        shooterMotorLeaderConfig.idleMode(IdleMode.kCoast);
+        shooterMotorLeaderConfig.smartCurrentLimit(60);
+        shooterMotorLeaderConfig.voltageCompensation(10);
+        m_shooterMotorLeader.configure(shooterMotorLeaderConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-        m_shooterMotorFollower = new SimableCANSparkFlex(Constants.SHOOTER_MOTOR_FOLLOWER, MotorType.kBrushless);
-        m_shooterMotorFollower.restoreFactoryDefaults();
-        m_shooterMotorFollower.setIdleMode(IdleMode.kCoast);
-        m_shooterMotorFollower.setSmartCurrentLimit(60);
-        m_shooterMotorFollower.follow(m_shooterMotorLeader, true);
-        m_shooterMotorFollower.burnFlash();
+        m_shooterMotorFollower = new SparkFlex(Constants.SHOOTER_MOTOR_FOLLOWER, MotorType.kBrushless);
+        SparkMaxConfig shooterMotorFollowerConfig = new SparkMaxConfig();
+        shooterMotorFollowerConfig.idleMode(IdleMode.kCoast);
+        shooterMotorFollowerConfig.smartCurrentLimit(60);
+        shooterMotorFollowerConfig.follow(m_shooterMotorLeader, true);
+        m_shooterMotorFollower.configure(shooterMotorFollowerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         m_shooterMotorErrorAlerts = new SparkMaxAlerts(m_shooterMotorLeader, "shooter motor");
         m_shooterFollowerErrorAlerts = new SparkMaxAlerts(m_shooterMotorFollower, "shooter follower");

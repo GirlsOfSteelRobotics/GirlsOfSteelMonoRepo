@@ -2,9 +2,12 @@ package com.gos.rapidreact.subsystems;
 
 
 import com.gos.rapidreact.Constants;
-import com.revrobotics.CANSparkBase.IdleMode;
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.SimableCANSparkMax;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -14,14 +17,14 @@ public class HorizontalConveyorSubsystem extends SubsystemBase {
     public static final double HORIZONTAL_CONVEYOR_AUTO_MOTOR_SPEED = 1;
 
 
-    private final SimableCANSparkMax m_leader;
+    private final SparkMax m_leader;
 
 
     public HorizontalConveyorSubsystem() {
-        m_leader = new SimableCANSparkMax(Constants.HORIZONTAL_CONVEYOR_LEADER_SPARK, MotorType.kBrushless);
-        m_leader.restoreFactoryDefaults();
-        m_leader.setIdleMode(IdleMode.kCoast);
-        m_leader.burnFlash();
+        m_leader = new SparkMax(Constants.HORIZONTAL_CONVEYOR_LEADER_SPARK, MotorType.kBrushless);
+        SparkMaxConfig leaderConfig = new SparkMaxConfig();
+        leaderConfig.idleMode(IdleMode.kCoast);
+        m_leader.configure(leaderConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     }
 
     public double getHorizontalConveyorSpeed() {

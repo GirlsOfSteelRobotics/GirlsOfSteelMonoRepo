@@ -2,10 +2,13 @@ package com.gos.infinite_recharge.subsystems;
 
 import com.gos.infinite_recharge.Constants;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.CANSparkBase.ControlType;
-import com.revrobotics.SparkPIDController;
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.SimableCANSparkMax;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -21,31 +24,31 @@ public class ShooterConveyor extends SubsystemBase {
 
     private double m_goalPosition;
 
-    private final SimableCANSparkMax m_master;
+    private final SparkMax m_master;
     private final RelativeEncoder m_encoder;
-    private final SparkPIDController m_pidController;
-    private final SimableCANSparkMax m_follower;
+    private final SparkClosedLoopController m_pidController;
+    private final SparkMax m_follower;
 
     private final DigitalInput m_breakSensorHandoff;
     private final DigitalInput m_breakSensorSecondary;
     private final DigitalInput m_breakSensorTop;
-    //private final SimableCANSparkMax m_follower;
+    //private final SparkMax m_follower;
 
     private final NetworkTable m_customNetworkTable;
 
     public ShooterConveyor() {
-        m_master = new SimableCANSparkMax(Constants.SHOOTER_CONVEYOR_SPARK_A, MotorType.kBrushless);
-        m_master.restoreFactoryDefaults();
+        m_master = new SparkMax(Constants.SHOOTER_CONVEYOR_SPARK_A, MotorType.kBrushless);
+        SparkMaxConfig masterConfig = new SparkMaxConfig();
 
         m_encoder = m_master.getEncoder();
-        m_pidController = m_master.getPIDController();
+        m_pidController = m_master.getClosedLoopController();
 
-        m_follower = new SimableCANSparkMax(Constants.SHOOTER_CONVEYOR_SPARK_B, MotorType.kBrushless);
-        m_follower.restoreFactoryDefaults();
+        m_follower = new SparkMax(Constants.SHOOTER_CONVEYOR_SPARK_B, MotorType.kBrushless);
+        SparkMaxConfig followerConfig = new SparkMaxConfig();
 
-        m_follower.follow(m_master, true);
+        followerConfig.follow(m_master, true);
 
-        m_master.setSmartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
+        masterConfig.smartCurrentLimit(Constants.SPARK_MAX_CURRENT_LIMIT);
         m_master.setInverted(false);
 
         m_breakSensorHandoff = new DigitalInput(Constants.DIGITAL_INPUT_SENSOR_HANDOFF);
@@ -54,10 +57,10 @@ public class ShooterConveyor extends SubsystemBase {
 
         m_customNetworkTable = NetworkTableInstance.getDefault().getTable("SuperStructure/ShooterConveyor");
 
-        m_pidController.setP(SHOOTER_CONVEYOR_KP);
+        masterConfig.closedLoop.p(SHOOTER_CONVEYOR_KP);
 
-        m_master.burnFlash();
-        m_follower.burnFlash();
+        m_master.configure(masterConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_follower.configure(followerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     }
 
     @Override

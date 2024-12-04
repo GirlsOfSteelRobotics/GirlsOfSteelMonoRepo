@@ -4,9 +4,12 @@
 
 package com.scra.mepi.rapid_react.subsystems;
 
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SimableCANSparkMax;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
 import com.scra.mepi.rapid_react.Constants;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
@@ -15,9 +18,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class ClimberSubsystem extends SubsystemBase {
-    private final SimableCANSparkMax m_leftClimber = new SimableCANSparkMax(Constants.CLIMBER_LEFT, MotorType.kBrushless);
-    private final SimableCANSparkMax m_rightClimber =
-        new SimableCANSparkMax(Constants.CLIMBER_RIGHT, MotorType.kBrushless);
+    private final SparkMax m_leftClimber = new SparkMax(Constants.CLIMBER_LEFT, MotorType.kBrushless);
+    private final SparkMax m_rightClimber =
+        new SparkMax(Constants.CLIMBER_RIGHT, MotorType.kBrushless);
     private final DigitalInput m_leftLimitSwitch = new DigitalInput(Constants.LEFT_LIMIT_SWITCH);
     private final DigitalInput m_rightLimitSwitch = new DigitalInput(Constants.RIGHT_LIMIT_SWITCH);
     private final RelativeEncoder m_leftEncoder = m_leftClimber.getEncoder();
@@ -29,17 +32,17 @@ public class ClimberSubsystem extends SubsystemBase {
      * Creates a new ClimberSubsystem.
      */
     public ClimberSubsystem() {
-        m_leftClimber.restoreFactoryDefaults();
-        m_rightClimber.restoreFactoryDefaults();
+        SparkMaxConfig leftClimberConfig = new SparkMaxConfig();
+        SparkMaxConfig rightClimberConfig = new SparkMaxConfig();
         m_leftClimber.setInverted(true);
         m_rightClimber.setInverted(false);
 
-        m_rightClimber.follow(m_leftClimber, true);
-        m_leftClimber.setSmartCurrentLimit(50);
-        m_rightClimber.setSmartCurrentLimit(50);
+        rightClimberConfig.follow(m_leftClimber, true);
+        leftClimberConfig.smartCurrentLimit(50);
+        rightClimberConfig.smartCurrentLimit(50);
 
-        m_leftClimber.burnFlash();
-        m_rightClimber.burnFlash();
+        m_leftClimber.configure(leftClimberConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_rightClimber.configure(rightClimberConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     }
 
     public void runClimberPID(double goal) {

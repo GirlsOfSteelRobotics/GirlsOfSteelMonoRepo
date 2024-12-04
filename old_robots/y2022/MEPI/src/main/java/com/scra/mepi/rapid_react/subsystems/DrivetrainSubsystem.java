@@ -9,11 +9,14 @@ import com.gos.lib.rev.properties.pid.RevPidPropertyBuilder;
 import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.path.PathPlannerPath;
-import com.revrobotics.CANSparkBase.ControlType;
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SimableCANSparkMax;
-import com.revrobotics.SparkPIDController;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.SparkClosedLoopController;
 import com.scra.mepi.rapid_react.Constants;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -40,14 +43,14 @@ import java.io.IOException;
 // Drive train
 @SuppressWarnings({"PMD.TooManyMethods", "PMD.TooManyFields"})
 public class DrivetrainSubsystem extends SubsystemBase {
-    private final SimableCANSparkMax m_leftLeader =
-        new SimableCANSparkMax(Constants.DRIVE_LEFT_LEADER, MotorType.kBrushless);
-    private final SimableCANSparkMax m_leftFollower =
-        new SimableCANSparkMax(Constants.DRIVE_LEFT_FOLLOWER, MotorType.kBrushless);
-    private final SimableCANSparkMax m_rightLeader =
-        new SimableCANSparkMax(Constants.DRIVE_RIGHT_LEADER, MotorType.kBrushless);
-    private final SimableCANSparkMax m_rightFollower =
-        new SimableCANSparkMax(Constants.DRIVE_RIGHT_FOLLOWER, MotorType.kBrushless);
+    private final SparkMax m_leftLeader =
+        new SparkMax(Constants.DRIVE_LEFT_LEADER, MotorType.kBrushless);
+    private final SparkMax m_leftFollower =
+        new SparkMax(Constants.DRIVE_LEFT_FOLLOWER, MotorType.kBrushless);
+    private final SparkMax m_rightLeader =
+        new SparkMax(Constants.DRIVE_RIGHT_LEADER, MotorType.kBrushless);
+    private final SparkMax m_rightFollower =
+        new SparkMax(Constants.DRIVE_RIGHT_FOLLOWER, MotorType.kBrushless);
     private final DifferentialDrive m_drive = new DifferentialDrive(m_leftLeader, m_rightLeader);
     private final DifferentialDriveKinematics m_kinematics =
         new DifferentialDriveKinematics(Constants.DRIVE_TRACK);
@@ -60,9 +63,9 @@ public class DrivetrainSubsystem extends SubsystemBase {
     private final Field2d m_field = new Field2d();
 
     // PID
-    private final SparkPIDController m_leftController = m_leftLeader.getPIDController();
+    private final SparkClosedLoopController m_leftController = m_leftLeader.getClosedLoopController();
     private final PidProperty m_leftProperties;
-    private final SparkPIDController m_rightController = m_rightLeader.getPIDController();
+    private final SparkClosedLoopController m_rightController = m_rightLeader.getClosedLoopController();
     private final PidProperty m_rightProperties;
 
     // Simulation
@@ -72,33 +75,33 @@ public class DrivetrainSubsystem extends SubsystemBase {
      * Creates a new DrivetrainSubsystem.
      */
     public DrivetrainSubsystem() {
-        m_leftLeader.restoreFactoryDefaults();
-        m_leftFollower.restoreFactoryDefaults();
-        m_rightLeader.restoreFactoryDefaults();
-        m_rightFollower.restoreFactoryDefaults();
+        SparkMaxConfig leftLeaderConfig = new SparkMaxConfig();
+        SparkMaxConfig leftFollowerConfig = new SparkMaxConfig();
+        SparkMaxConfig rightLeaderConfig = new SparkMaxConfig();
+        SparkMaxConfig rightFollowerConfig = new SparkMaxConfig();
 
-        m_leftLeader.setSmartCurrentLimit(50);
-        m_leftFollower.setSmartCurrentLimit(50);
-        m_rightLeader.setSmartCurrentLimit(50);
-        m_rightFollower.setSmartCurrentLimit(50);
+        leftLeaderConfig.smartCurrentLimit(50);
+        leftFollowerConfig.smartCurrentLimit(50);
+        rightLeaderConfig.smartCurrentLimit(50);
+        rightFollowerConfig.smartCurrentLimit(50);
 
         m_leftLeader.setInverted(true);
 
-        m_leftFollower.follow(m_leftLeader);
-        m_rightFollower.follow(m_rightLeader);
+        leftFollowerConfig.follow(m_leftLeader);
+        rightFollowerConfig.follow(m_rightLeader);
 
         m_leftProperties = setupVelocityPidValues(m_leftController);
         m_rightProperties = setupVelocityPidValues(m_rightController);
 
-        m_leftEncoder.setPositionConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
-        m_rightEncoder.setPositionConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
-        m_leftEncoder.setVelocityConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
-        m_rightEncoder.setVelocityConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
+        leftLeaderConfig.encoder.positionConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
+        rightLeaderConfig.encoder.positionConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
+        leftLeaderConfig.encoder.velocityConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
+        rightLeaderConfig.encoder.velocityConversionFactor(Constants.DRIVE_CONVERSION_FACTOR);
 
-        m_leftLeader.burnFlash();
-        m_leftFollower.burnFlash();
-        m_rightLeader.burnFlash();
-        m_rightFollower.burnFlash();
+        m_leftLeader.configure(leftLeaderConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_leftFollower.configure(leftFollowerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_rightLeader.configure(rightLeaderConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_rightFollower.configure(rightFollowerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         SmartDashboard.putData(m_field);
 
@@ -120,7 +123,7 @@ public class DrivetrainSubsystem extends SubsystemBase {
         }
     }
 
-    private PidProperty setupVelocityPidValues(SparkPIDController pidController) {
+    private PidProperty setupVelocityPidValues(SparkClosedLoopController pidController) {
         return new RevPidPropertyBuilder("ChassisVelocity", false, pidController, 0)
             .addP(1)
             .addI(0)

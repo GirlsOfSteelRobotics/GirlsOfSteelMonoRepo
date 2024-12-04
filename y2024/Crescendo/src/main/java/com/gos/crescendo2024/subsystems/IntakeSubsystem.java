@@ -5,10 +5,13 @@ import com.gos.crescendo2024.Constants;
 import com.gos.lib.logging.LoggingUtil;
 import com.gos.lib.properties.GosDoubleProperty;
 import com.gos.lib.rev.alerts.SparkMaxAlerts;
-import com.revrobotics.CANSparkBase.IdleMode;
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SimableCANSparkMax;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -17,19 +20,19 @@ public class IntakeSubsystem extends SubsystemBase {
     private static final GosDoubleProperty INTAKE_OUT_SPEED = new GosDoubleProperty(Constants.DEFAULT_CONSTANT_PROPERTIES, "Intake_Out_Speed", -1);
     private static final GosDoubleProperty INTAKE_IN_SPEED = new GosDoubleProperty(Constants.DEFAULT_CONSTANT_PROPERTIES, "Intake_In_Speed", 1.0);
 
-    private final SimableCANSparkMax m_intakeMotor;
+    private final SparkMax m_intakeMotor;
     private final RelativeEncoder m_intakeEncoder;
     private final DigitalInput m_photoelectricSensor;
     private final LoggingUtil m_networkTableEntries;
     private final SparkMaxAlerts m_intakeAlert;
 
     public IntakeSubsystem() {
-        m_intakeMotor = new SimableCANSparkMax(Constants.INTAKE_MOTOR, MotorType.kBrushless);
-        m_intakeMotor.restoreFactoryDefaults();
-        m_intakeMotor.setIdleMode(IdleMode.kBrake);
-        m_intakeMotor.setSmartCurrentLimit(40);
+        m_intakeMotor = new SparkMax(Constants.INTAKE_MOTOR, MotorType.kBrushless);
+        SparkMaxConfig intakeMotorConfig = new SparkMaxConfig();
+        intakeMotorConfig.idleMode(IdleMode.kBrake);
+        intakeMotorConfig.smartCurrentLimit(40);
         m_intakeMotor.setInverted(true);
-        m_intakeMotor.burnFlash();
+        m_intakeMotor.configure(intakeMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         m_intakeEncoder = m_intakeMotor.getEncoder();
         m_intakeAlert = new SparkMaxAlerts(m_intakeMotor, "Intake Motor");
@@ -74,7 +77,7 @@ public class IntakeSubsystem extends SubsystemBase {
     }
 
     private void setIdleMode(IdleMode idleMode) {
-        m_intakeMotor.setIdleMode(idleMode);
+        intakeMotorConfig.idleMode(idleMode);
     }
 
     /////////////////////////////////////

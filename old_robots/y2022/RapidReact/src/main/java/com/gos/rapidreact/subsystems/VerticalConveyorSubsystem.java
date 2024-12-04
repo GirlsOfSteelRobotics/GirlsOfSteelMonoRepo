@@ -2,9 +2,12 @@ package com.gos.rapidreact.subsystems;
 
 
 import com.gos.rapidreact.Constants;
-import com.revrobotics.CANSparkBase.IdleMode;
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.SimableCANSparkMax;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -19,8 +22,8 @@ public class VerticalConveyorSubsystem extends SubsystemBase {
 
     public static final double FEEDER_MOTOR_SPEED = 0.5;
 
-    private final SimableCANSparkMax m_conveyor; //multiple sets of wheels to move the cargo up
-    private final SimableCANSparkMax m_feeder; //needs to move for the cargo to shoot
+    private final SparkMax m_conveyor; //multiple sets of wheels to move the cargo up
+    private final SparkMax m_feeder; //needs to move for the cargo to shoot
 
     private final DigitalInput m_indexSensorUpper;
     private final DigitalInput m_indexSensorLower;
@@ -30,20 +33,20 @@ public class VerticalConveyorSubsystem extends SubsystemBase {
     private final NetworkTableEntry m_upperIndexSensorEntry;
 
     public VerticalConveyorSubsystem() {
-        m_conveyor = new SimableCANSparkMax(Constants.VERTICAL_CONVEYOR_SPARK, MotorType.kBrushless);
-        m_conveyor.restoreFactoryDefaults();
-        m_conveyor.setIdleMode(IdleMode.kBrake);
+        m_conveyor = new SparkMax(Constants.VERTICAL_CONVEYOR_SPARK, MotorType.kBrushless);
+        SparkMaxConfig conveyorConfig = new SparkMaxConfig();
+        conveyorConfig.idleMode(IdleMode.kBrake);
         m_conveyor.setInverted(true);
 
-        m_feeder = new SimableCANSparkMax(Constants.VERTICAL_CONVEYOR_FEEDER_SPARK, MotorType.kBrushless);
-        m_feeder.restoreFactoryDefaults();
-        m_feeder.setIdleMode(IdleMode.kCoast);
+        m_feeder = new SparkMax(Constants.VERTICAL_CONVEYOR_FEEDER_SPARK, MotorType.kBrushless);
+        SparkMaxConfig feederConfig = new SparkMaxConfig();
+        feederConfig.idleMode(IdleMode.kCoast);
 
         m_indexSensorUpper = new DigitalInput(Constants.INDEX_SENSOR_UPPER_VERTICAL_CONVEYOR);
         m_indexSensorLower = new DigitalInput(Constants.INDEX_SENSOR_LOWER_VERTICAL_CONVEYOR);
 
-        m_conveyor.burnFlash();
-        m_feeder.burnFlash();
+        m_conveyor.configure(conveyorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_feeder.configure(feederConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         NetworkTable loggingTable = NetworkTableInstance.getDefault().getTable("VerticalConveyor");
         m_lowerIndexSensorEntry = loggingTable.getEntry("Lower Cargo Sensor");

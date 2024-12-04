@@ -1,9 +1,12 @@
 package com.gos.codelabs.basic_simulator.subsystems;
 
 import com.gos.codelabs.basic_simulator.Constants;
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SimableCANSparkMax;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
@@ -26,10 +29,10 @@ import org.snobotv2.sim_wrappers.DifferentialDrivetrainSimWrapper;
 
 public class ChassisSubsystem extends SubsystemBase implements AutoCloseable {
 
-    private final SimableCANSparkMax m_leftDriveA;
-    private final SimableCANSparkMax m_leftDriveB;
-    private final SimableCANSparkMax m_rightDriveA;
-    private final SimableCANSparkMax m_rightDriveB;
+    private final SparkMax m_leftDriveA;
+    private final SparkMax m_leftDriveB;
+    private final SparkMax m_rightDriveA;
+    private final SparkMax m_rightDriveB;
 
     private final RelativeEncoder m_leftEncoder;
     private final RelativeEncoder m_rightEncoder;
@@ -80,17 +83,17 @@ public class ChassisSubsystem extends SubsystemBase implements AutoCloseable {
 
     public ChassisSubsystem() {
 
-        m_leftDriveA = new SimableCANSparkMax(Constants.CAN_CHASSIS_LEFT_A, MotorType.kBrushless);
-        m_leftDriveB = new SimableCANSparkMax(Constants.CAN_CHASSIS_LEFT_B, MotorType.kBrushless);
-        m_leftDriveA.restoreFactoryDefaults();
-        m_leftDriveB.restoreFactoryDefaults();
-        m_leftDriveB.follow(m_leftDriveA);
+        m_leftDriveA = new SparkMax(Constants.CAN_CHASSIS_LEFT_A, MotorType.kBrushless);
+        m_leftDriveB = new SparkMax(Constants.CAN_CHASSIS_LEFT_B, MotorType.kBrushless);
+        SparkMaxConfig leftDriveAConfig = new SparkMaxConfig();
+        SparkMaxConfig leftDriveBConfig = new SparkMaxConfig();
+        leftDriveBConfig.follow(m_leftDriveA);
 
-        m_rightDriveA = new SimableCANSparkMax(Constants.CAN_CHASSIS_RIGHT_A, MotorType.kBrushless);
-        m_rightDriveB = new SimableCANSparkMax(Constants.CAN_CHASSIS_RIGHT_B, MotorType.kBrushless);
-        m_rightDriveA.restoreFactoryDefaults();
-        m_rightDriveB.restoreFactoryDefaults();
-        m_rightDriveB.follow(m_rightDriveA);
+        m_rightDriveA = new SparkMax(Constants.CAN_CHASSIS_RIGHT_A, MotorType.kBrushless);
+        m_rightDriveB = new SparkMax(Constants.CAN_CHASSIS_RIGHT_B, MotorType.kBrushless);
+        SparkMaxConfig rightDriveAConfig = new SparkMaxConfig();
+        SparkMaxConfig rightDriveBConfig = new SparkMaxConfig();
+        rightDriveBConfig.follow(m_rightDriveA);
         m_rightDriveA.setInverted(true);
 
         m_leftEncoder = m_leftDriveA.getEncoder();
@@ -117,10 +120,10 @@ public class ChassisSubsystem extends SubsystemBase implements AutoCloseable {
             m_differentialDrive.setSafetyEnabled(false);
         }
 
-        m_leftDriveA.burnFlash();
-        m_leftDriveB.burnFlash();
-        m_rightDriveA.burnFlash();
-        m_rightDriveA.burnFlash();
+        m_leftDriveA.configure(leftDriveAConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_leftDriveB.configure(leftDriveBConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_rightDriveA.configure(rightDriveAConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+        m_rightDriveA.configure(rightDriveAConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     }
 
     @Override
