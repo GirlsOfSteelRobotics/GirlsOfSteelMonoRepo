@@ -1,0 +1,34 @@
+name: Bazel
+
+on: [push]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+
+jobs:
+  build:
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.10' }
+      - name: Regen 2024
+        run:  bazel run @bzlmodrio-choreolib//libraries/tools/choreo-cli:choreo-cli -- --chor --generate --all-trajectory y2024/Crescendo/src/main/deploy/choreo/ChoreoAutos.chor
+
+      - name: Check output
+        run: git --no-pager diff --exit-code HEAD
+      - name: Print Debug Message
+        if: ${{ failure() }}
+        run: |
+          echo "::error:: The automatic generation script choreo is producing different code than what has been comitted"
+
+      - name: Generate diff
+        run: git diff HEAD > choreo-fixes.patch
+        if: ${{ failure() }}
