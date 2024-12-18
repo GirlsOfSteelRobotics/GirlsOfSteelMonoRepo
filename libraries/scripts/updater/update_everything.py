@@ -1,5 +1,6 @@
 import os
 import sys
+import subprocess
 from libraries.scripts.updater.replace_gradlerio_files import (
     replace_gradlerio_files,
 )
@@ -19,14 +20,13 @@ def update_everything():
         os.chdir(os.environ["BUILD_WORKSPACE_DIRECTORY"])
 
     ignore_download_cache = True
-    run_replacements_in_steps = True
+    run_replacements_in_batch = True
 
     update_vendor_deps(ignore_cache=ignore_download_cache)
     replace_gradlerio_files(run_custom_updates=True)
-    if run_replacements_in_steps:
-        run_standard_replacement(auto_commit=False)
-        run_our_additional_replacements(auto_commit=False)
-        run_smart_spotless(commands=["spotlessGroovyGradleApply"])
+    if run_replacements_in_batch:
+        run_all_replacements(auto_commit=False)
+        run_smart_spotless(commands=["spotlessApply"], auto_commit=False)
         commit_all_changes("Auto-Update: Ran replacements")
     else:
         run_all_replacements()

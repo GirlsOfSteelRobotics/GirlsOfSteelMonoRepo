@@ -11,6 +11,7 @@ DEFAULT_DIR_BLACKLIST = [
     "bazel-out",
     "bazel-testlogs",
     "bazel-gos_monorepo",
+    "bazel-girlsofsteelfrc",
     ".gradle",
     "gradle",
     ".idea",
