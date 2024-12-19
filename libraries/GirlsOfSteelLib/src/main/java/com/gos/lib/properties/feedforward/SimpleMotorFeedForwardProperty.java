@@ -1,11 +1,6 @@
 package com.gos.lib.properties.feedforward;
 
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.units.Measure;
-import edu.wpi.first.units.PerUnit;
-import edu.wpi.first.units.TimeUnit;
-import edu.wpi.first.units.Unit;
-import edu.wpi.first.units.measure.Voltage;
 
 public class SimpleMotorFeedForwardProperty extends BaseFeedForwardProperty {
     private SimpleMotorFeedforward m_feedForward;
@@ -38,22 +33,31 @@ public class SimpleMotorFeedForwardProperty extends BaseFeedForwardProperty {
         return this;
     }
 
-    @SuppressWarnings("removal")
-    @Deprecated(forRemoval = true, since = "2025")
-    public double calculate(double velocity) {
-        return m_feedForward.calculate(velocity, 0);
-    }
-
+    /**
+     * Calculates the feedforward from the gains and setpoints assuming continuous control.
+     *
+     * @param velocity The velocity setpoint.
+     * @param acceleration The acceleration setpoint.
+     * @return The computed feedforward.
+     * @deprecated Use {@link #calculateWithVelocities(double, double)} instead.
+     */
     @SuppressWarnings("removal")
     @Deprecated(forRemoval = true, since = "2025")
     public double calculate(double velocity, double acceleration) {
         return m_feedForward.calculate(velocity, acceleration);
     }
 
-    public <U extends Unit> Voltage calculate(
-        Measure<? extends PerUnit<U, TimeUnit>> currentVelocity,
-        Measure<? extends PerUnit<U, TimeUnit>> nextVelocity) {
-        return m_feedForward.calculate(currentVelocity, nextVelocity);
+    /**
+     * Calculates the feedforward from the gains and setpoints assuming discrete control.
+     *
+     * <p>Note this method is inaccurate when the velocity crosses 0.
+     *
+     * @param currentVelocity The current velocity setpoint.
+     * @param nextVelocity The next velocity setpoint.
+     * @return The computed feedforward.
+     */
+    public double calculateWithVelocities(double currentVelocity, double nextVelocity) {
+        return m_feedForward.calculateWithVelocities(currentVelocity, nextVelocity);
     }
 
     public double getKs() {

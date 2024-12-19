@@ -202,9 +202,11 @@ public class RevSwerveChassis implements AutoCloseable {
         double ySpeedDelivered = ySpeed * m_maxSpeedMetersPerSecond;
         double rotDelivered = rot * m_maxAngularSpeed;
 
-        ChassisSpeeds desiredSpeed = new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered);
+        ChassisSpeeds desiredSpeed;
         if (fieldRelative) {
-            desiredSpeed.toRobotRelativeSpeeds(getEstimatedPosition().getRotation());
+            desiredSpeed = ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, getEstimatedPosition().getRotation());
+        } else {
+            desiredSpeed = new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered);
         }
         setChassisSpeeds(desiredSpeed);
     }
